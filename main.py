@@ -2,7 +2,6 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import torch.backends.cudnn as cudnn
 
 import torchvision
 import torchvision.transforms as transforms
@@ -11,6 +10,7 @@ import os
 import argparse
 
 from models.simple_convnet import VanillaConvNet
+from models.vision_transformer import VisionTransformer
 from utils import progress_bar
 
 parser = argparse.ArgumentParser(description='PyTorch CIFAR10 Training')
@@ -26,7 +26,8 @@ start_epoch = 0  # start from epoch 0 or last checkpoint epoch
 # Data
 print('==> Preparing data..')
 transform_train = transforms.Compose([
-    transforms.RandomCrop(32, padding=4),
+    transforms.Resize(8),
+    transforms.RandomCrop(8, padding=2),
     transforms.RandomHorizontalFlip(),
     transforms.ToTensor(),
     transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
@@ -66,9 +67,13 @@ print('==> Building model..')
 # net = ShuffleNetV2(1)
 # net = EfficientNetB0()
 # net = RegNetX_200MF()
-net = VanillaConvNet(
+net = VisionTransformer(
     in_channels=3,
-    num_classes=10
+    patch_size=2,
+    embedding_size=128,
+    num_heads=8,
+    num_layers=6,
+    n_classes=10
 )
 net = net.to(device)
 

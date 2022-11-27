@@ -59,13 +59,13 @@ class ProjectDataSet(Dataset):
     def __len__(self):
         return len(self._file_names)
 
-
-dataset = ProjectDataSet(
-    'data/project_data/train_shuffle',
-    'data/project_data/train_label.csv'
-)
-from torch.utils.data import DataLoader
-
-train_loader = DataLoader(
-    dataset, batch_size=128, shuffle=True, num_workers=4
-)
+#
+# dataset = ProjectDataSet(
+#     'data/project_data/train_shuffle',
+#     'data/project_data/train_label.csv'
+# )
+# from torch.utils.data import DataLoader
+#
+# train_loader = DataLoader(
+#     dataset, batch_size=128, shuffle=True, num_workers=4
+# )
