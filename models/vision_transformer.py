@@ -8,7 +8,8 @@ class PatchEmbedding(nn.Module):
             self,
             in_channels: int = 3,
             patch_size: int = 2,
-            embedding_size: int = 64
+            embedding_size: int = 64,
+            img_size: int = 8
     ):
         super(PatchEmbedding, self).__init__()
         self._in_channels = in_channels
@@ -18,6 +19,8 @@ class PatchEmbedding(nn.Module):
         self._cls_token = nn.Parameter(
             torch.randn(1, 1, embedding_size)
         )
+        self._positions = nn.Parameter(
+            torch.randn(1, (img_size // patch_size) ** 2 + 1, embedding_size))
 
         self._conv2d_layer = nn.Conv2d(
             in_channels,
@@ -31,10 +34,9 @@ class PatchEmbedding(nn.Module):
         x = self._conv2d_layer(x)
         x = x.view((bs, -1, self._embedding_size))
         x = torch.cat([self._cls_token.repeat((bs, 1, 1)), x], dim=1)
-        seq_len = x.shape[1]
 
         # Add positional encodings to each position
-        x += self._create_positional_encodings(seq_len)
+        x += self._positions
 
         return x
 
