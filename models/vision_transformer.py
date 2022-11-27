@@ -73,6 +73,7 @@ class VisionTransformer(nn.Module):
     def __init__(
             self,
             in_channels: int = 3,
+            img_size: int = 8,
             patch_size: int = 2,
             embedding_size: int = 128,
             num_heads: int = 8,
@@ -84,6 +85,7 @@ class VisionTransformer(nn.Module):
         self._patch_embedding = PatchEmbedding(
             in_channels=in_channels,
             patch_size=patch_size,
+            img_size=img_size,
             embedding_size=embedding_size
         )
         self._transformer_encoder_layer = nn.TransformerEncoder(
