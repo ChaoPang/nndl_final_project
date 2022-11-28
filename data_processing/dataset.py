@@ -19,7 +19,7 @@ class ProjectDataSet(Dataset):
     def __init__(
             self,
             image_folder_path: str,
-            data_label_path: str,
+            data_label_path: str = None,
             transform=None,
             is_superclass=True
     ):
@@ -28,6 +28,8 @@ class ProjectDataSet(Dataset):
         self._file_names = get_all_filenames(image_folder_path)
         self._transform = transform
         self._is_superclass = is_superclass
+        self._is_training = data_label_path is not None
+
         self._label_dict = self._get_class_label(
             data_label_path
         )
@@ -36,16 +38,18 @@ class ProjectDataSet(Dataset):
             self,
             data_label_path: str
     ):
-        y_train_label = pd.read_csv(data_label_path)
-        class_column_name = 'superclass_index' if self._is_superclass else 'subclass_index'
-        if class_column_name not in y_train_label.columns:
-            raise RuntimeError(f'Required column {class_column_name} is missing')
-        if 'image_index' not in y_train_label.columns:
-            raise RuntimeError('Required column image_index is missing')
-        return dict(
-            (t.image_index, getattr(t, class_column_name))
-            for t in y_train_label.itertuples()
-        )
+        if data_label_path:
+            y_train_label = pd.read_csv(data_label_path)
+            class_column_name = 'superclass_index' if self._is_superclass else 'subclass_index'
+            if class_column_name not in y_train_label.columns:
+                raise RuntimeError(f'Required column {class_column_name} is missing')
+            if 'image_index' not in y_train_label.columns:
+                raise RuntimeError('Required column image_index is missing')
+            return dict(
+                (t.image_index, getattr(t, class_column_name))
+                for t in y_train_label.itertuples()
+            )
+        return dict()
 
     def __getitem__(self, idx):
         image_filepath = os.path.join(self._image_folder_path, self._file_names[idx])
@@ -54,18 +58,7 @@ class ProjectDataSet(Dataset):
         img = img / 255.0  # Min-max transform.
         if self._transform:
             img = self._transform(img)
-        return img, self._label_dict[self._file_names[idx]]
+        return img, self._label_dict.get(self._file_names[idx], 0)
 
     def __len__(self):
         return len(self._file_names)
-
-#
-# dataset = ProjectDataSet(
-#     'data/project_data/train_shuffle',
-#     'data/project_data/train_label.csv'
-# )
-# from torch.utils.data import DataLoader
-#
-# train_loader = DataLoader(
-#     dataset, batch_size=128, shuffle=True, num_workers=4
-# )
