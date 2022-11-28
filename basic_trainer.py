@@ -10,9 +10,9 @@ from torch.utils.data import DataLoader
 import torchvision.transforms as transforms
 
 from data_processing.dataset import ProjectDataSet
-from models.resnet import ResNet50
+from models.resnet import *
 
-from utils import progress_bar
+from utils.utils import progress_bar
 
 MODEL_NAME = 'best_model.pt'
 
@@ -21,10 +21,14 @@ def create_arg_parser():
     parser = argparse.ArgumentParser(description='PyTorch NNDL image classification challenge')
     parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
     parser.add_argument('--epochs', default=100, type=int, help='Number of epochs')
-    parser.add_argument('--training_data_path', help='input_folder containing the images')
-    parser.add_argument('--training_label_path', help='the path to training label')
-    parser.add_argument('--test_data_path', help='input_folder containing the images')
-    parser.add_argument('--checkpoint_path', help='checkpoint_path for the model')
+    parser.add_argument('--early_stopping_patience', default=10, type=int,
+                        help='Early stopping patience')
+    parser.add_argument('--training_data_path', required=True,
+                        help='input_folder containing the images')
+    parser.add_argument('--training_label_path', required=True, help='the path to training label')
+    parser.add_argument('--test_data_path', required=True,
+                        help='input_folder containing the images')
+    parser.add_argument('--checkpoint_path', required=True, help='checkpoint_path for the model')
     return parser
 
 
@@ -132,16 +136,17 @@ def predict(
 def main(args):
     # Data
     transform_train = transforms.Compose([
-        transforms.Resize(8),
-        transforms.RandomCrop(8, padding=2),
+        transforms.Resize(32),
+        transforms.RandomCrop(32, padding=4),
         transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
-        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+        transforms.Normalize((0.4707, 0.4431, 0.3708), (0.1577, 0.1587, 0.1783)),
     ])
 
     transform_test = transforms.Compose([
+        transforms.Resize(32),
         transforms.ToTensor(),
-        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+        transforms.Normalize((0.4707, 0.4431, 0.3708), (0.1577, 0.1587, 0.1783)),
     ])
 
     training_dataset = ProjectDataSet(
@@ -151,6 +156,13 @@ def main(args):
         is_superclass=True
     )
 
+    train_total = len(training_dataset)
+    train_size = int(train_total * 0.9)
+    val_size = train_total - train_size
+    train_set, val_set = torch.utils.data.random_split(
+        training_dataset, [train_size, val_size]
+    )
+
     test_set = ProjectDataSet(
         image_folder_path=args.test_data_path,
         transform=transform_test,
@@ -158,7 +170,11 @@ def main(args):
     )
 
     train_dataloader = DataLoader(
-        training_dataset, batch_size=128, shuffle=True, num_workers=4
+        train_set, batch_size=128, shuffle=True, num_workers=4
+    )
+
+    val_dataloader = DataLoader(
+        val_set, batch_size=128, shuffle=True, num_workers=4
     )
 
     test_dataloader = DataLoader(
@@ -176,12 +192,13 @@ def main(args):
     training_loop(
         net,
         train_dataloader,
-        test_dataloader,
+        val_dataloader,
         criterion,
         optimizer,
         scheduler,
         args.epochs,
         device,
+        args.early_stopping_patience,
         args.checkpoint_path
     )
 
