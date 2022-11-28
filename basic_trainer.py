@@ -183,6 +183,8 @@ def main(args):
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     net = ResNet50()
+    net = net.to(device)
+
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(
         net.parameters(), lr=args.lr, momentum=0.9, weight_decay=5e-4
