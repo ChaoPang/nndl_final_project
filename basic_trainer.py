@@ -256,7 +256,7 @@ def training_loop(
     for epoch in range(0, epochs):
 
         train_loss, train_acc = train(net, train_dataloader, criterion, optimizer, device)
-        val_loss, val_acc = validate(net, test_dataloader, criterion)
+        val_loss, val_acc = validate(net, test_dataloader, criterion, device)
         scheduler.step()
 
         update_metrics(
