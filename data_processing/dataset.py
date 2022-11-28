@@ -2,8 +2,10 @@ import os
 import cv2
 from typing import List
 
+import numpy as np
 import pandas as pd
 from torch.utils.data import Dataset
+from PIL import Image
 
 
 def get_all_filenames(
@@ -55,7 +57,7 @@ class ProjectDataSet(Dataset):
         image_filepath = os.path.join(self._image_folder_path, self._file_names[idx])
         img = cv2.imread(image_filepath)  # Read in image from filepath.
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        img = img / 255.0  # Min-max transform.
+        img = Image.fromarray(img)
         if self._transform:
             img = self._transform(img)
         return img, self._label_dict.get(self._file_names[idx], 0)
