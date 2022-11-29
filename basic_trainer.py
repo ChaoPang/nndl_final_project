@@ -6,9 +6,8 @@ import pandas as pd
 
 import torch.optim as optim
 from torch.utils.data import DataLoader
-import torchvision.transforms as transforms
 
-from data_processing.dataset import ProjectDataSet
+from data_processing.dataset import ProjectDataSet, ExtractedCifarDataset, IterableProjectDataSet
 from models.resnet import *
 
 from utils.utils import progress_bar
@@ -39,6 +38,8 @@ def create_arg_parser():
     parser.add_argument('--training_label_path', required=True, help='the path to training label')
     parser.add_argument('--test_data_path', required=True,
                         help='input_folder containing the images')
+    parser.add_argument('--cifar_data_path', required=False,
+                        help='input_folder containing the CIFAR images')
     parser.add_argument('--checkpoint_path', required=True, help='checkpoint_path for the model')
     return parser
 
@@ -149,38 +150,37 @@ def predict(
 
 def main(args):
     # Data
-    transform_train = transforms.Compose([
-        transforms.Resize(32),
-        transforms.RandomCrop(32, padding=4),
-        transforms.RandomHorizontalFlip(),
-        transforms.ToTensor(),
-        transforms.Normalize((0.4707, 0.4431, 0.3708), (0.1577, 0.1587, 0.1783)),
-    ])
-
-    transform_test = transforms.Compose([
-        transforms.Resize(32),
-        transforms.ToTensor(),
-        transforms.Normalize((0.4707, 0.4431, 0.3708), (0.1577, 0.1587, 0.1783)),
-    ])
 
     training_dataset = ProjectDataSet(
         image_folder_path=args.training_data_path,
         data_label_path=args.training_label_path,
-        transform=transform_train,
+        is_training=True,
         is_superclass=True
     )
+
+    test_set = ProjectDataSet(
+        image_folder_path=args.test_data_path,
+        is_training=False,
+        is_superclass=True
+    )
+
+    if args.cifar_data_path:
+        cifar_train_set = ExtractedCifarDataset(
+            args.cifar_data_path,
+            train=True
+        )
+        cifar_test_set = ExtractedCifarDataset(
+            args.cifar_data_path,
+            train=False
+        )
+        training_dataset = torch.utils.data.ConcatDataset(
+            [training_dataset, cifar_train_set, cifar_test_set])
 
     train_total = len(training_dataset)
     train_size = int(train_total * 0.9)
     val_size = train_total - train_size
     train_set, val_set = torch.utils.data.random_split(
         training_dataset, [train_size, val_size]
-    )
-
-    test_set = ProjectDataSet(
-        image_folder_path=args.test_data_path,
-        transform=transform_test,
-        is_superclass=True
     )
 
     train_dataloader = DataLoader(
