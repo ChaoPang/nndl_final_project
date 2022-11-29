@@ -48,7 +48,7 @@ class ProjectDataSet(Dataset):
             if 'image' not in y_train_label.columns:
                 raise RuntimeError('Required column image_index is missing')
             return dict(
-                (t.image_index, getattr(t, class_column_name))
+                (t.image, getattr(t, class_column_name))
                 for t in y_train_label.itertuples()
             )
         return dict()
