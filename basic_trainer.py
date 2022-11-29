@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 
 from data_processing.dataset import ProjectDataSet, ExtractedCifarDataset
 from models.resnet import *
-from models.resnet_pretrained import FinetuneResnet152
+from models.finetune_pretrained import FinetuneResnet152, FinetuneRegNet
 
 from utils.utils import progress_bar
 import matplotlib.pyplot as plt
@@ -219,7 +219,8 @@ def main(args):
     # Initialize the model
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     # net = ResNet101(num_classes=3)
-    net = FinetuneResnet152(num_classes=3)
+    # net = FinetuneResnet152(num_classes=3)
+    net = FinetuneRegNet(num_classes=3)
     net = net.to(device)
 
     history = train_model(net, train_set, val_set, args, device)
