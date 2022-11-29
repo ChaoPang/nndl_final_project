@@ -7,7 +7,7 @@ import pandas as pd
 import torch.optim as optim
 from torch.utils.data import DataLoader
 
-from data_processing.dataset import ProjectDataSet, ExtractedCifarDataset, IterableProjectDataSet
+from data_processing.dataset import ProjectDataSet, ExtractedCifarDataset
 from models.resnet import *
 
 from utils.utils import progress_bar
