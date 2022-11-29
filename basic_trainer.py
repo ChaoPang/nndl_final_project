@@ -161,7 +161,7 @@ def predict(
             if is_label_available:
                 labels.append(targets.detach().cpu().numpy())
                 total += targets.size(0)
-                correct += predicted.eq(targets).sum().item()
+                correct += predicted.detach().cpu().eq(targets).sum().item()
                 progress_bar(batch_idx, len(data_loader), 'Acc: %.3f%% (%d/%d)'
                              % (100. * correct / total, correct, total))
     predictions_pd = pd.DataFrame(np.hstack(predictions), columns=['predictions'])
