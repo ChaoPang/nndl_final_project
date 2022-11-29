@@ -129,8 +129,8 @@ def predict(
     with torch.no_grad():
         for batch_idx, inputs in enumerate(data_loader):
             outputs = net(inputs)
-            predictions.append(torch.argmax(outputs, dim=-1))
-    return predictions
+            predictions.append(torch.argmax(outputs, dim=-1).detach().cpu().numpy())
+    return np.asarray(predictions)
 
 
 def main(args):
@@ -207,8 +207,11 @@ def main(args):
     net = torch.load(os.path.join(args.checkpoint_path, MODEL_NAME))
     predictions = predict(net, test_dataloader)
 
-    with open(os.path.join(args.checkpoint_path, 'predictions'), 'wb') as f:
-        np.save(f, predictions.numpy())
+    np.savetxt(
+        os.path.join(args.checkpoint_path, 'predictions'),
+        predictions,
+        delimiter=','
+    )
 
 
 def update_metrics(

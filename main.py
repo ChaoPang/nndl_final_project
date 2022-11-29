@@ -11,7 +11,7 @@ import argparse
 
 from models.simple_convnet import VanillaConvNet
 from models.vision_transformer import VisionTransformer
-from utils import progress_bar
+from utils.utils import progress_bar
 
 parser = argparse.ArgumentParser(description='PyTorch CIFAR10 Training')
 parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
