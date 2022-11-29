@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 
 from data_processing.dataset import ProjectDataSet, ExtractedCifarDataset
 from models.resnet import *
-from models.finetune_pretrained import FinetuneResnet152, FinetuneRegNet
+from models.finetune_pretrained import *
 
 from utils.utils import progress_bar
 import matplotlib.pyplot as plt
@@ -33,6 +33,9 @@ def create_arg_parser():
     parser = argparse.ArgumentParser(description='PyTorch NNDL image classification challenge')
     parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
     parser.add_argument('--epochs', default=100, type=int, help='Number of epochs')
+    parser.add_argument('--dropout_rate', default=0.5, type=float, help='Dropout rate')
+    parser.add_argument('--freeze_weight', action='store_true',
+                        help='Whether or not we freeze the weights of the pretrained model')
     parser.add_argument('--early_stopping_patience', default=10, type=int,
                         help='Early stopping patience')
     parser.add_argument('--img_size', default=8, type=int, help='Image Size')
@@ -220,7 +223,12 @@ def main(args):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     # net = ResNet101(num_classes=3)
     # net = FinetuneResnet152(num_classes=3)
-    net = FinetuneRegNet(num_classes=3)
+    # net = FinetuneRegNet(num_classes=3)
+    net = FinetuneEnsembleModel(
+        num_classes=3,
+        dropout_rate=args.dropout_rate,
+        freeze_weight=args.freeze_weight
+    )
     net = net.to(device)
 
     history = train_model(net, train_set, val_set, args, device)
