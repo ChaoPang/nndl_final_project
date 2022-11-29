@@ -132,7 +132,7 @@ def predict(
         for batch_idx, (inputs, _) in enumerate(data_loader):
             outputs = net(inputs.to(device))
             predictions.append(torch.argmax(outputs, dim=-1).detach().cpu().numpy())
-    return pd.DataFrame(predictions, columns=['predictions'])
+    return pd.DataFrame(np.hstack(predictions), columns=['predictions'])
 
 
 def main(args):
