@@ -196,7 +196,7 @@ def main(args):
     )
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    net = ResNet50()
+    net = ResNet101()
     net = net.to(device)
 
     criterion = nn.CrossEntropyLoss()
