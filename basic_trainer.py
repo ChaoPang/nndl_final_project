@@ -227,7 +227,8 @@ def main(args):
     net = FinetuneEnsembleModel(
         num_classes=3,
         dropout_rate=args.dropout_rate,
-        freeze_weight=args.freeze_weight
+        freeze_weight=args.freeze_weight,
+        device=device
     )
     net = net.to(device)
 
