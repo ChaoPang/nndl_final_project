@@ -1,14 +1,13 @@
 import os
 import cv2
-from typing import List, Iterator
+from typing import List
 
 import numpy as np
 import pandas as pd
-from torch.utils.data import Dataset, IterableDataset
+from torch.utils.data import Dataset
 import torchvision.transforms as transforms
 
 from PIL import Image
-from torch.utils.data.dataset import T_co
 
 
 def get_all_filenames(

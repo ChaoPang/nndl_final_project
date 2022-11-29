@@ -9,6 +9,8 @@ from torch.utils.data import DataLoader
 
 from data_processing.dataset import ProjectDataSet, ExtractedCifarDataset
 from models.resnet import *
+from models.simple_convnet import VanillaConvNet
+from models.vision_transformer import VisionTransformer
 
 from utils.utils import progress_bar
 import matplotlib.pyplot as plt
@@ -217,7 +219,8 @@ def main(args):
 
     # Initialize the model
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    net = ResNet101(num_classes=3)
+    # net = ResNet101(num_classes=3)
+    net = VisionTransformer(in_channels=3, img_size=8, patch_size=2)
     net = net.to(device)
 
     history = train_model(net, train_set, val_set, args, device)
