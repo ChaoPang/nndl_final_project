@@ -11,6 +11,7 @@ from data_processing.dataset import ProjectDataSet, ExtractedCifarDataset
 from models.resnet import *
 
 from utils.utils import progress_bar
+import matplotlib.pyplot as plt
 
 MODEL_NAME = 'best_model.pt'
 
@@ -210,7 +211,7 @@ def main(args):
     )
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=200)
 
-    training_loop(
+    history = training_loop(
         net,
         train_dataloader,
         val_dataloader,
@@ -229,6 +230,16 @@ def main(args):
         os.path.join(args.checkpoint_path, 'predictions.csv'),
         index=False
     )
+
+    # Plot training curve
+    plt.figure()
+    plt.plot(history['train_loss'], "ro-", label="Train")
+    plt.plot(history['val_loss'], "go-", label="Validation")
+    plt.legend()
+    plt.title("Loss")
+    plt.xlabel("Epochs")
+    plt.savefig(args.checkpoint_path + "/training_curve.png")
+
 
 
 def update_metrics(
