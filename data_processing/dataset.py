@@ -26,7 +26,8 @@ class ProjectDataSet(Dataset):
             image_folder_path: str,
             data_label_path: str = None,
             is_training=True,
-            is_superclass=True
+            is_superclass=True,
+            img_size=8
     ):
         self._image_folder_path = image_folder_path
         self._data_label_path = data_label_path
@@ -34,6 +35,7 @@ class ProjectDataSet(Dataset):
         self._is_training = is_training
         self._is_superclass = is_superclass
         self._is_training = data_label_path is not None
+        self._img_size = img_size
 
         self._label_dict = self._get_class_label(
             data_label_path
@@ -59,15 +61,15 @@ class ProjectDataSet(Dataset):
     def _get_transformers(self):
         if self._is_training:
             return transforms.Compose([
-                transforms.Resize(32),
-                transforms.RandomCrop(32, padding=4),
+                transforms.Resize(self._img_size),
+                transforms.RandomCrop(8, padding=2),
                 transforms.RandomHorizontalFlip(),
                 transforms.ToTensor(),
                 transforms.Normalize((0.4707, 0.4431, 0.3708), (0.1577, 0.1587, 0.1783)),
             ])
 
         return transforms.Compose([
-            transforms.Resize(32),
+            transforms.Resize(self._img_size),
             transforms.ToTensor(),
             transforms.Normalize((0.4707, 0.4431, 0.3708), (0.1577, 0.1587, 0.1783)),
         ])
@@ -87,10 +89,11 @@ class ProjectDataSet(Dataset):
 class ExtractedCifarDataset(Dataset):
     stats = ((0.49303856, 0.47863943, 0.4250731), (0.24740638, 0.23635836, 0.24916491))
 
-    def __init__(self, data_folder_path, train=True):
+    def __init__(self, data_folder_path, train=True, img_size=8):
 
         self.data_folder_path = data_folder_path
         self.train = train
+        self.img_size = img_size
         if train:
             data_path = os.path.join(data_folder_path, 'train_data.npy')
             target_path = os.path.join(data_folder_path, 'train_targets.npy')
@@ -106,13 +109,15 @@ class ExtractedCifarDataset(Dataset):
     def _get_transformers(self):
         if self.train:
             return transforms.Compose([
+                transforms.Resize(self.img_size),
                 transforms.RandomHorizontalFlip(),
-                transforms.RandomCrop(32, padding=4, padding_mode="reflect"),
+                transforms.RandomCrop(8, padding=2, padding_mode="reflect"),
                 transforms.ToTensor(),
                 transforms.Normalize(*self.stats)
             ])
 
         return transforms.Compose([
+            transforms.Resize(self.img_size),
             transforms.ToTensor(),
             transforms.Normalize(*self.stats)
         ])

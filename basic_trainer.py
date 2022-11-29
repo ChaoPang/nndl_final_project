@@ -33,6 +33,7 @@ def create_arg_parser():
     parser.add_argument('--epochs', default=100, type=int, help='Number of epochs')
     parser.add_argument('--early_stopping_patience', default=10, type=int,
                         help='Early stopping patience')
+    parser.add_argument('--img_size', default=8, type=int, help='Image Size')
     parser.add_argument('--training_data_path', required=True,
                         help='input_folder containing the images')
     parser.add_argument('--training_label_path', required=True, help='the path to training label')
@@ -155,23 +156,27 @@ def main(args):
         image_folder_path=args.training_data_path,
         data_label_path=args.training_label_path,
         is_training=True,
-        is_superclass=True
+        is_superclass=True,
+        img_size=args.img_size
     )
 
     test_set = ProjectDataSet(
         image_folder_path=args.test_data_path,
         is_training=False,
-        is_superclass=True
+        is_superclass=True,
+        img_size=args.img_size
     )
 
     if args.cifar_data_path:
         cifar_train_set = ExtractedCifarDataset(
             args.cifar_data_path,
-            train=True
+            train=True,
+            img_size=args.img_size
         )
         cifar_test_set = ExtractedCifarDataset(
             args.cifar_data_path,
-            train=False
+            train=False,
+            img_size=args.img_size
         )
         training_dataset = torch.utils.data.ConcatDataset(
             [training_dataset, cifar_train_set, cifar_test_set])
@@ -196,7 +201,7 @@ def main(args):
     )
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    net = ResNet101()
+    net = ResNet101(num_classes=3)
     net = net.to(device)
 
     criterion = nn.CrossEntropyLoss()
