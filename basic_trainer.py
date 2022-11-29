@@ -188,8 +188,8 @@ def main(args):
     net = net.to(device)
 
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(
-        net.parameters(), lr=args.lr, momentum=0.9, weight_decay=5e-4
+    optimizer = optim.Adam(
+        net.parameters(), lr=args.lr, weight_decay=5e-4
     )
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=200)
 
@@ -282,6 +282,7 @@ def training_loop(
             print("Validation loss has not improved in {} epochs, stopping early".format(
                 early_stopping_patience))
             print("Obtained lowest validation loss of: {}".format(best_val_loss))
+            break
 
     return history
 
