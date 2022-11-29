@@ -133,6 +133,49 @@ class FinetuneRegNet(nn.Sequential):
         )
 
 
+class FinetuneEfficientNetB7FeatureExtractor(PretrainedFeatureExtractor):
+
+    def __init__(self, dropout_rate=0.5, freeze_weight=False):
+        super(FinetuneEfficientNetB7FeatureExtractor, self).__init__(
+            dropout_rate=dropout_rate,
+            freeze_weight=freeze_weight
+        )
+
+    def _get_feature_extractor(self) -> nn.Module:
+        model = models.efficientnet_b7(pretrained=True)
+        return create_feature_extractor(
+            model,
+            return_nodes={'features.3': 'features.3'}
+        )
+
+    def _get_tensor_by_name(self, named_features: dict) -> Tensor:
+        return named_features['features.3']
+
+    def _get_num_features(self) -> nn.Module:
+        return list(self._feature_extractor.modules())[-1].num_features
+
+
+class FinetuneEfficientNetB7(nn.Sequential):
+
+    def __init__(self, num_classes, dropout_rate=0.5, freeze_weight=False):
+        super().__init__(
+            FinetuneEfficientNetB7FeatureExtractor(
+                dropout_rate=dropout_rate,
+                freeze_weight=freeze_weight
+            ),
+            nn.Linear(FinetuneEfficientNetB7FeatureExtractor.output_num_features, 128),
+            nn.ReLU(),
+            nn.Dropout(dropout_rate),
+            nn.Linear(128, 64),
+            nn.ReLU(),
+            nn.Dropout(dropout_rate),
+            nn.Linear(
+                64,
+                num_classes
+            )
+        )
+
+
 class FinetuneEnsembleModel(nn.Module):
     def __init__(self, num_classes, device, dropout_rate=0.5, freeze_weight=False):
         super(FinetuneEnsembleModel, self).__init__()
