@@ -2,6 +2,7 @@ import os
 import pickle
 import argparse
 import numpy as np
+import pandas as pd
 
 import torch
 import torch.nn as nn
@@ -130,7 +131,7 @@ def predict(
         for batch_idx, (inputs, _) in enumerate(data_loader):
             outputs = net(inputs)
             predictions.append(torch.argmax(outputs, dim=-1).detach().cpu().numpy())
-    return np.asarray(predictions)
+    return pd.DataFrame(predictions, columns=['predictionos'])
 
 
 def main(args):
@@ -205,12 +206,10 @@ def main(args):
     )
 
     net = torch.load(os.path.join(args.checkpoint_path, MODEL_NAME))
-    predictions = predict(net, test_dataloader)
-
-    np.savetxt(
-        os.path.join(args.checkpoint_path, 'predictions'),
-        predictions,
-        delimiter=','
+    predictions_pd = predict(net, test_dataloader)
+    predictions_pd.to_csv(
+        os.path.join(args.checkpoint_path, 'predictions.csv'),
+        index=False
     )
 
 
