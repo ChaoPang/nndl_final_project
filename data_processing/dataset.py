@@ -45,7 +45,7 @@ class ProjectDataSet(Dataset):
             class_column_name = 'superclass_index' if self._is_superclass else 'subclass_index'
             if class_column_name not in y_train_label.columns:
                 raise RuntimeError(f'Required column {class_column_name} is missing')
-            if 'image_index' not in y_train_label.columns:
+            if 'image' not in y_train_label.columns:
                 raise RuntimeError('Required column image_index is missing')
             return dict(
                 (t.image_index, getattr(t, class_column_name))
@@ -64,3 +64,32 @@ class ProjectDataSet(Dataset):
 
     def __len__(self):
         return len(self._file_names)
+
+
+class ExtractedCifarDataset(Dataset):
+    stats = ((0.49303856, 0.47863943, 0.4250731), (0.24740638, 0.23635836, 0.24916491))
+
+    def __init__(self, data_folder_path, train=True, transform=None):
+
+        self.data_folder_path = data_folder_path
+        if train:
+            data_path = os.path.join(data_folder_path, 'train_data.npy')
+            target_path = os.path.join(data_folder_path, 'train_targets.npy')
+        else:
+            data_path = os.path.join(data_folder_path, 'test_data.npy')
+            target_path = os.path.join(data_folder_path, 'test_targets.npy')
+
+        self.data = np.load(data_path)
+        self.targets = np.load(target_path)
+        self.classes = ['bird', 'dog', 'repitle']
+        self.class_to_idx = {'bird': 0, 'dog': 1, 'reptile': 2}
+        self.transform = transform
+
+    def __getitem__(self, idx):
+        sample = Image.fromarray(np.uint8(self.data[idx])).convert('RGB')
+        if self.transform:
+            sample = self.transform(sample)
+        return sample, self.targets[idx]
+
+    def __len__(self):
+        return len(self.data)
