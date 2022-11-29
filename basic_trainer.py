@@ -4,8 +4,6 @@ import argparse
 import numpy as np
 import pandas as pd
 
-import torch
-import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 import torchvision.transforms as transforms
@@ -16,6 +14,18 @@ from models.resnet import *
 from utils.utils import progress_bar
 
 MODEL_NAME = 'best_model.pt'
+
+IDX_TO_SUPERCLASS_DICT = {
+    0: 'bird',
+    1: 'dog',
+    2: 'reptile'
+}
+
+
+def map_idx_to_superclass(
+        predictions: pd.Series
+):
+    return predictions.apply(IDX_TO_SUPERCLASS_DICT.get)
 
 
 def create_arg_parser():
@@ -132,7 +142,9 @@ def predict(
         for batch_idx, (inputs, _) in enumerate(data_loader):
             outputs = net(inputs.to(device))
             predictions.append(torch.argmax(outputs, dim=-1).detach().cpu().numpy())
-    return pd.DataFrame(np.hstack(predictions), columns=['predictions'])
+    predictions_pd = pd.DataFrame(np.hstack(predictions), columns=['predictions'])
+    predictions_pd['prediction_class'] = map_idx_to_superclass(predictions_pd.predictions)
+    return predictions_pd
 
 
 def main(args):
