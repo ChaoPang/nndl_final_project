@@ -127,7 +127,7 @@ def predict(
     net.eval()
     predictions = []
     with torch.no_grad():
-        for batch_idx, inputs in enumerate(data_loader):
+        for batch_idx, (inputs, _) in enumerate(data_loader):
             outputs = net(inputs)
             predictions.append(torch.argmax(outputs, dim=-1).detach().cpu().numpy())
     return np.asarray(predictions)
