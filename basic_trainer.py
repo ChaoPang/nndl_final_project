@@ -123,15 +123,16 @@ def validate(
 
 def predict(
         net,
-        data_loader
+        data_loader,
+        device
 ):
     net.eval()
     predictions = []
     with torch.no_grad():
         for batch_idx, (inputs, _) in enumerate(data_loader):
-            outputs = net(inputs)
+            outputs = net(inputs.to(device))
             predictions.append(torch.argmax(outputs, dim=-1).detach().cpu().numpy())
-    return pd.DataFrame(predictions, columns=['predictionos'])
+    return pd.DataFrame(predictions, columns=['predictions'])
 
 
 def main(args):
@@ -206,7 +207,7 @@ def main(args):
     )
 
     net = torch.load(os.path.join(args.checkpoint_path, MODEL_NAME))
-    predictions_pd = predict(net, test_dataloader)
+    predictions_pd = predict(net, test_dataloader, device)
     predictions_pd.to_csv(
         os.path.join(args.checkpoint_path, 'predictions.csv'),
         index=False
