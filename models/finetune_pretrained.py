@@ -8,7 +8,7 @@ from torchvision.models.feature_extraction import create_feature_extractor
 
 
 class PretrainedFeatureExtractor(nn.Module):
-    output_num_features = 128
+    output_num_features = 256
 
     def __init__(self, freeze_weight, dropout_rate):
         super(PretrainedFeatureExtractor, self).__init__()
@@ -20,13 +20,8 @@ class PretrainedFeatureExtractor(nn.Module):
             for _, p in self._feature_extractor.named_parameters():
                 p.requires_grad = False
 
-        self._dense_layer = nn.Sequential(
-            nn.Linear(self._get_num_features(), 256),
-            nn.ReLU(),
-            nn.Dropout(dropout_rate),
-            nn.Linear(256, self.output_num_features),
-            nn.ReLU(),
-            nn.Dropout(dropout_rate),
+        self._linear_layer = nn.Sequential(
+            nn.Linear(self._get_num_features(), self.output_num_features)
         )
 
     def forward(self, x: Tensor) -> Tensor:
@@ -36,7 +31,7 @@ class PretrainedFeatureExtractor(nn.Module):
         features = self._get_tensor_by_name(named_features)
         features = F.avg_pool2d(features, features.shape[-1])
         features = features.view(features.size(0), -1)
-        out = self._dense_layer(features)
+        out = self._linear_layer(features)
         return out
 
     @abstractmethod
@@ -82,8 +77,14 @@ class FinetuneResnet152(nn.Sequential):
                 dropout_rate=dropout_rate,
                 freeze_weight=freeze_weight
             ),
+            nn.Linear(FinetuneResnet152FeatureExtractor.output_num_features, 128),
+            nn.ReLU(),
+            nn.Dropout(dropout_rate),
+            nn.Linear(128, 64),
+            nn.ReLU(),
+            nn.Dropout(dropout_rate),
             nn.Linear(
-                FinetuneResnet152FeatureExtractor.output_num_features,
+                64,
                 num_classes
             )
         )
@@ -119,8 +120,14 @@ class FinetuneRegNet(nn.Sequential):
                 dropout_rate=dropout_rate,
                 freeze_weight=freeze_weight
             ),
+            nn.Linear(FinetuneResnet152FeatureExtractor.output_num_features, 128),
+            nn.ReLU(),
+            nn.Dropout(dropout_rate),
+            nn.Linear(128, 64),
+            nn.ReLU(),
+            nn.Dropout(dropout_rate),
             nn.Linear(
-                FinetuneResnet152FeatureExtractor.output_num_features,
+                64,
                 num_classes
             )
         )
