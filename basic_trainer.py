@@ -43,6 +43,10 @@ def create_arg_parser():
     parser.add_argument('--cifar_data_path', required=False,
                         help='input_folder containing the CIFAR images')
     parser.add_argument('--checkpoint_path', required=True, help='checkpoint_path for the model')
+    parser.add_argument('--external_validation', action='store_true',
+                        help='Using CIFAR data to test the model')
+    parser.add_argument('--test_label', action='store_true',
+                        help='Indicate whether the test label is available')
     return parser
 
 
@@ -136,59 +140,46 @@ def validate(
 
 def predict(
         net,
-        data_loader,
-        device
+        test_set,
+        device,
+        is_label_available: bool = False
 ):
+    data_loader = DataLoader(
+        test_set, batch_size=128, num_workers=4
+    )
+
     net.eval()
     predictions = []
+    labels = []
+    correct = 0
+    total = 0
     with torch.no_grad():
-        for batch_idx, (inputs, _) in enumerate(data_loader):
+        for batch_idx, (inputs, targets) in enumerate(data_loader):
             outputs = net(inputs.to(device))
-            predictions.append(torch.argmax(outputs, dim=-1).detach().cpu().numpy())
+            predicted = torch.argmax(outputs, dim=-1)
+            predictions.append(predicted.detach().cpu().numpy())
+            if is_label_available:
+                labels.append(targets.detach().cpu().numpy())
+                total += targets.size(0)
+                correct += predicted.eq(targets).sum().item()
+                progress_bar(batch_idx, len(data_loader), 'Acc: %.3f%% (%d/%d)'
+                             % (100. * correct / total, correct, total))
     predictions_pd = pd.DataFrame(np.hstack(predictions), columns=['predictions'])
     predictions_pd['prediction_class'] = map_idx_to_superclass(predictions_pd.predictions)
+
+    if is_label_available:
+        predictions_pd['label'] = np.hstack(labels)
+
     return predictions_pd
 
 
-def main(args):
-    # Data
-
-    training_dataset = ProjectDataSet(
-        image_folder_path=args.training_data_path,
-        data_label_path=args.training_label_path,
-        is_training=True,
-        is_superclass=True,
-        img_size=args.img_size
-    )
-
-    test_set = ProjectDataSet(
-        image_folder_path=args.test_data_path,
-        is_training=False,
-        is_superclass=True,
-        img_size=args.img_size
-    )
-
-    if args.cifar_data_path:
-        cifar_train_set = ExtractedCifarDataset(
-            args.cifar_data_path,
-            train=True,
-            img_size=args.img_size
-        )
-        cifar_test_set = ExtractedCifarDataset(
-            args.cifar_data_path,
-            train=False,
-            img_size=args.img_size
-        )
-        training_dataset = torch.utils.data.ConcatDataset(
-            [training_dataset, cifar_train_set, cifar_test_set])
-
-    train_total = len(training_dataset)
-    train_size = int(train_total * 0.9)
-    val_size = train_total - train_size
-    train_set, val_set = torch.utils.data.random_split(
-        training_dataset, [train_size, val_size]
-    )
-
+def train_model(
+        net,
+        train_set,
+        val_set,
+        args,
+        device
+):
     train_dataloader = DataLoader(
         train_set, batch_size=128, shuffle=True, num_workers=4
     )
@@ -196,14 +187,6 @@ def main(args):
     val_dataloader = DataLoader(
         val_set, batch_size=128, shuffle=True, num_workers=4
     )
-
-    test_dataloader = DataLoader(
-        test_set, batch_size=128, num_workers=4
-    )
-
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    net = ResNet101(num_classes=3)
-    net = net.to(device)
 
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(
@@ -224,8 +207,23 @@ def main(args):
         args.checkpoint_path
     )
 
+    return history
+
+
+def main(args):
+    # Data
+
+    train_set, val_set, test_set = create_datasets(args)
+
+    # Initialize the model
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    net = ResNet101(num_classes=3)
+    net = net.to(device)
+
+    history = train_model(net, train_set, val_set, args, device)
+
     net = torch.load(os.path.join(args.checkpoint_path, MODEL_NAME))
-    predictions_pd = predict(net, test_dataloader, device)
+    predictions_pd = predict(net, test_set, device, args.test_label)
     predictions_pd.to_csv(
         os.path.join(args.checkpoint_path, 'predictions.csv'),
         index=False
@@ -240,6 +238,63 @@ def main(args):
     plt.xlabel("Epochs")
     plt.savefig(args.checkpoint_path + "/training_curve.png")
 
+
+def create_datasets(
+        args
+):
+    training_dataset = ProjectDataSet(
+        image_folder_path=args.training_data_path,
+        data_label_path=args.training_label_path,
+        is_training=True,
+        is_superclass=True,
+        img_size=args.img_size
+    )
+
+    if args.external_validation and args.cifar_data_path:
+        # Use the CIFAR data as the external validation set
+        cifar_train_set = ExtractedCifarDataset(
+            args.cifar_data_path,
+            train=True,
+            img_size=args.img_size
+        )
+        cifar_test_set = ExtractedCifarDataset(
+            args.cifar_data_path,
+            train=False,
+            img_size=args.img_size
+        )
+        test_set = torch.utils.data.ConcatDataset(
+            [cifar_train_set, cifar_test_set])
+    else:
+
+        if args.cifar_data_path:
+            cifar_train_set = ExtractedCifarDataset(
+                args.cifar_data_path,
+                train=True,
+                img_size=args.img_size
+            )
+            cifar_test_set = ExtractedCifarDataset(
+                args.cifar_data_path,
+                train=False,
+                img_size=args.img_size
+            )
+            training_dataset = torch.utils.data.ConcatDataset(
+                [training_dataset, cifar_train_set, cifar_test_set])
+
+        test_set = ProjectDataSet(
+            image_folder_path=args.test_data_path,
+            is_training=False,
+            is_superclass=True,
+            img_size=args.img_size
+        )
+
+    train_total = len(training_dataset)
+    train_size = int(train_total * 0.9)
+    val_size = train_total - train_size
+    train_set, val_set = torch.utils.data.random_split(
+        training_dataset, [train_size, val_size]
+    )
+
+    return train_set, val_set, test_set
 
 
 def update_metrics(
