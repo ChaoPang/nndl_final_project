@@ -284,7 +284,7 @@ def create_datasets(
         train_set = torch.utils.data.ConcatDataset(
             [train_set, val_set])
         train_total = len(train_set)
-        train_size = int(train_total * 0.9)
+        train_size = int(train_total * 0.8)
         val_size = train_total - train_size
         train_set, val_set = torch.utils.data.random_split(
             train_set, [train_size, val_size]
