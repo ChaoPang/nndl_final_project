@@ -1,3 +1,4 @@
+import sys
 import os
 import pickle
 import argparse
@@ -7,7 +8,7 @@ import pandas as pd
 import torch.optim as optim
 from torch.utils.data import DataLoader
 
-from data_processing.dataset import ProjectDataSet, ExtractedCifarDataset
+from data_processing.dataset import ProjectDataSet, CifarValidationDataset
 from models.resnet import *
 from models.finetune_pretrained import *
 
@@ -21,6 +22,8 @@ IDX_TO_SUPERCLASS_DICT = {
     1: 'dog',
     2: 'reptile'
 }
+
+sys.setrecursionlimit(10000)
 
 
 def map_idx_to_superclass(
@@ -44,7 +47,7 @@ def create_arg_parser():
     parser.add_argument('--training_label_path', required=True, help='the path to training label')
     parser.add_argument('--test_data_path', required=True,
                         help='input_folder containing the images')
-    parser.add_argument('--cifar_data_path', required=False,
+    parser.add_argument('--cifar_data_path', required=True,
                         help='input_folder containing the CIFAR images')
     parser.add_argument('--checkpoint_path', required=True, help='checkpoint_path for the model')
     parser.add_argument('--external_validation', action='store_true',
@@ -255,7 +258,7 @@ def main(args):
 def create_datasets(
         args
 ):
-    training_dataset = ProjectDataSet(
+    train_set = ProjectDataSet(
         image_folder_path=args.training_data_path,
         data_label_path=args.training_label_path,
         is_training=True,
@@ -263,49 +266,29 @@ def create_datasets(
         img_size=args.img_size
     )
 
-    if args.external_validation and args.cifar_data_path:
-        # Use the CIFAR data as the external validation set
-        cifar_train_set = ExtractedCifarDataset(
-            args.cifar_data_path,
-            train=True,
-            img_size=args.img_size
-        )
-        cifar_test_set = ExtractedCifarDataset(
-            args.cifar_data_path,
-            train=False,
-            img_size=args.img_size
-        )
-        test_set = torch.utils.data.ConcatDataset(
-            [cifar_train_set, cifar_test_set])
-    else:
-
-        if args.cifar_data_path:
-            cifar_train_set = ExtractedCifarDataset(
-                args.cifar_data_path,
-                train=True,
-                img_size=args.img_size
-            )
-            cifar_test_set = ExtractedCifarDataset(
-                args.cifar_data_path,
-                train=False,
-                img_size=args.img_size
-            )
-            training_dataset = torch.utils.data.ConcatDataset(
-                [training_dataset, cifar_train_set, cifar_test_set])
-
-        test_set = ProjectDataSet(
-            image_folder_path=args.test_data_path,
-            is_training=False,
-            is_superclass=True,
-            img_size=args.img_size
-        )
-
-    train_total = len(training_dataset)
-    train_size = int(train_total * 0.9)
-    val_size = train_total - train_size
-    train_set, val_set = torch.utils.data.random_split(
-        training_dataset, [train_size, val_size]
+    test_set = ProjectDataSet(
+        image_folder_path=args.test_data_path,
+        is_training=False,
+        is_superclass=True,
+        img_size=args.img_size
     )
+
+    # Use the CIFAR data as the external validation set
+    val_set = CifarValidationDataset(
+        cifar_data_folder=args.cifar_data_path,
+        download=True,
+        img_size=args.img_size
+    )
+
+    if not args.external_validation:
+        train_set = torch.utils.data.ConcatDataset(
+            [train_set, val_set])
+        train_total = len(train_set)
+        train_size = int(train_total * 0.9)
+        val_size = train_total - train_size
+        train_set, val_set = torch.utils.data.random_split(
+            train_set, [train_size, val_size]
+        )
 
     return train_set, val_set, test_set
 

@@ -105,6 +105,7 @@ class CifarValidationDataset(Dataset):
 
     def _get_cifar10_dataset(self) -> CIFAR10:
         transform = torchvision.transforms.Compose([
+            torchvision.transforms.Resize(self._img_size),
             torchvision.transforms.ToTensor(),
             torchvision.transforms.Normalize(
                 *((0.49139968, 0.48215827, 0.44653124),
@@ -147,6 +148,7 @@ class CifarValidationDataset(Dataset):
 
     def _get_cifar100_dataset(self) -> CIFAR100:
         transform = torchvision.transforms.Compose([
+            torchvision.transforms.Resize(self._img_size),
             torchvision.transforms.ToTensor(),
             torchvision.transforms.Normalize(*((0.5074, 0.4867, 0.4411), (0.2011, 0.1987, 0.2025)))
         ])
