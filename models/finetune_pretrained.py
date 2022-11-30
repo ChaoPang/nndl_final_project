@@ -184,10 +184,14 @@ class FinetuneEnsembleModel(nn.Module):
                 dropout_rate=dropout_rate,
                 freeze_weight=freeze_weight
             ).to(device),
-            FinetuneRegNetFeatureExtractor(
+            FinetuneResnet152FeatureExtractor(
                 dropout_rate=dropout_rate,
                 freeze_weight=freeze_weight
             ).to(device)
+            # FinetuneRegNetFeatureExtractor(
+            #     dropout_rate=dropout_rate,
+            #     freeze_weight=freeze_weight
+            # ).to(device)
         ]
 
         num_of_features = PretrainedFeatureExtractor.output_num_features * len(
