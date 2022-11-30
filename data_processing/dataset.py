@@ -4,9 +4,11 @@ from typing import List
 
 import numpy as np
 import pandas as pd
+import torch.utils.data
 from torch.utils.data import Dataset
+import torchvision
+from torchvision.datasets import CIFAR10, CIFAR100
 import torchvision.transforms as transforms
-
 from PIL import Image
 
 
@@ -61,7 +63,7 @@ class ProjectDataSet(Dataset):
         if self._is_training:
             return transforms.Compose([
                 transforms.Resize(self._img_size),
-                transforms.RandomCrop(8, padding=2),
+                transforms.RandomCrop(self._img_size, padding=self._img_size // 4),
                 transforms.RandomHorizontalFlip(),
                 transforms.ToTensor(),
                 transforms.Normalize((0.4707, 0.4431, 0.3708), (0.1577, 0.1587, 0.1783)),
@@ -85,46 +87,95 @@ class ProjectDataSet(Dataset):
         return len(self._file_names)
 
 
-class ExtractedCifarDataset(Dataset):
-    stats = ((0.49303856, 0.47863943, 0.4250731), (0.24740638, 0.23635836, 0.24916491))
-
-    def __init__(self, data_folder_path, train=True, img_size=8):
-
-        self.data_folder_path = data_folder_path
-        self.train = train
-        self.img_size = img_size
-        if train:
-            data_path = os.path.join(data_folder_path, 'train_data.npy')
-            target_path = os.path.join(data_folder_path, 'train_targets.npy')
-        else:
-            data_path = os.path.join(data_folder_path, 'test_data.npy')
-            target_path = os.path.join(data_folder_path, 'test_targets.npy')
-
-        self.data = np.load(data_path)
-        self.targets = np.load(target_path)
-        self.classes = ['bird', 'dog', 'reptile']
-        self.class_to_idx = {'bird': 0, 'dog': 1, 'reptile': 2}
-
-    def _get_transformers(self):
-        if self.train:
-            return transforms.Compose([
-                transforms.Resize(self.img_size),
-                transforms.RandomHorizontalFlip(),
-                transforms.RandomCrop(8, padding=2, padding_mode="reflect"),
-                transforms.ToTensor(),
-                transforms.Normalize(*self.stats)
-            ])
-
-        return transforms.Compose([
-            transforms.Resize(self.img_size),
-            transforms.ToTensor(),
-            transforms.Normalize(*self.stats)
+class CifarValidationDataset(Dataset):
+    def __init__(self, img_size=8, cifar_data_folder='./data', download=True):
+        self._img_size = img_size
+        self._cifar_data_folder = cifar_data_folder
+        self._download = download
+        self._cifar_dataset = torch.utils.data.ConcatDataset([
+            self._get_cifar10_dataset(),
+            self._get_cifar100_dataset()
         ])
 
     def __getitem__(self, idx):
-        sample = Image.fromarray(np.uint8(self.data[idx])).convert('RGB')
-        sample = self._get_transformers()(sample)
-        return sample, self.targets[idx]
+        return self._cifar_dataset[idx]
 
     def __len__(self):
-        return len(self.data)
+        return len(self._cifar_dataset)
+
+    def _get_cifar10_dataset(self) -> CIFAR10:
+        transform = torchvision.transforms.Compose([
+            torchvision.transforms.ToTensor(),
+            torchvision.transforms.Normalize(
+                *((0.49139968, 0.48215827, 0.44653124),
+                  (0.24703233, 0.24348505, 0.26158768)))
+        ])
+        # Download the CIFAR10 Data
+        cifar10_train = torchvision.datasets.CIFAR10(
+            root=self._cifar_data_folder,
+            train=True,
+            download=self._download,
+            transform=transform
+        )
+        cifar10_test = torchvision.datasets.CIFAR10(
+            root=self._cifar_data_folder,
+            train=False,
+            download=self._download,
+            transform=transform
+        )
+
+        x_train = cifar10_train.data
+        y_train = np.asarray(cifar10_train.targets)
+
+        x_test = cifar10_test.data
+        y_test = np.asarray(cifar10_test.targets)
+
+        bird_data = np.concatenate(
+            [x_train[np.squeeze(y_train == 2)], x_test[np.squeeze(y_test == 2)]])
+        dog_data = np.concatenate(
+            [x_train[np.squeeze(y_train == 5)], x_test[np.squeeze(y_test == 5)]])
+
+        dog_data = dog_data[np.random.choice(len(dog_data), size=3000, replace=False)]
+        bird_data = bird_data[np.random.choice(len(bird_data), size=3000, replace=False)]
+
+        y = np.repeat([[0], [1]], repeats=[3000], axis=-1).flatten()
+
+        cifar10_train.data = np.concatenate([bird_data, dog_data])
+        cifar10_train.targets = y
+
+        return cifar10_train
+
+    def _get_cifar100_dataset(self) -> CIFAR100:
+        transform = torchvision.transforms.Compose([
+            torchvision.transforms.ToTensor(),
+            torchvision.transforms.Normalize(*((0.5074, 0.4867, 0.4411), (0.2011, 0.1987, 0.2025)))
+        ])
+        # Download the CIFAR100 Data
+        cifar100_train = torchvision.datasets.CIFAR100(
+            root=self._cifar_data_folder,
+            train=True,
+            download=self._download,
+            transform=transform
+        )
+        cifar100_test = torchvision.datasets.CIFAR100(
+            root=self._cifar_data_folder,
+            train=False,
+            download=self._download,
+            transform=transform
+        )
+
+        x_train = cifar100_train.data
+        y_train = np.asarray(cifar100_train.targets)
+
+        x_test = cifar100_test.data
+        y_test = np.asarray(cifar100_test.targets)
+
+        reptile_data = np.concatenate(
+            [x_train[np.squeeze(y_train == 15)], x_test[np.squeeze(y_test == 15)]])
+
+        y = np.repeat([[2]], repeats=[3000], axis=-1).flatten()
+
+        cifar100_train.data = reptile_data
+        cifar100_train.targets = y
+
+        return cifar100_train
