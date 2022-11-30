@@ -290,6 +290,10 @@ def create_datasets(
             train_set, [train_size, val_size]
         )
 
+    print(f'train_set size: {len(train_set)}')
+    print(f'val_set size: {len(val_set)}')
+    print(f'test_set size: {len(test_set)}')
+
     return train_set, val_set, test_set
 
 
