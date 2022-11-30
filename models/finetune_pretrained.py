@@ -180,7 +180,7 @@ class FinetuneEnsembleModel(nn.Module):
     def __init__(self, num_classes, device, dropout_rate=0.5, freeze_weight=False):
         super(FinetuneEnsembleModel, self).__init__()
         self._feature_extractors = [
-            FinetuneResnet152FeatureExtractor(
+            FinetuneEfficientNetB7FeatureExtractor(
                 dropout_rate=dropout_rate,
                 freeze_weight=freeze_weight
             ).to(device),

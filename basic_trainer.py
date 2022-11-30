@@ -227,13 +227,13 @@ def main(args):
     # net = ResNet101(num_classes=3)
     # net = FinetuneResnet152(num_classes=3)
     # net = FinetuneRegNet(num_classes=3)
-    net = FinetuneEfficientNetB7(num_classes=3)
-    # net = FinetuneEnsembleModel(
-    #     num_classes=3,
-    #     dropout_rate=args.dropout_rate,
-    #     freeze_weight=args.freeze_weight,
-    #     device=device
-    # )
+    # net = FinetuneEfficientNetB7(num_classes=3)
+    net = FinetuneEnsembleModel(
+        num_classes=3,
+        dropout_rate=args.dropout_rate,
+        freeze_weight=args.freeze_weight,
+        device=device
+    )
     net = net.to(device)
 
     history = train_model(net, train_set, val_set, args, device)
