@@ -1,3 +1,4 @@
+import os
 import argparse
 
 import torch
@@ -14,8 +15,6 @@ def create_arg_parser():
     parser = argparse.ArgumentParser(description='PyTorch Recover high resolution images')
     parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
     parser.add_argument('--epochs', default=100, type=int, help='Number of epochs')
-    parser.add_argument('--early_stopping_patience', default=10, type=int,
-                        help='Early stopping patience')
     parser.add_argument('--img_input_size', default=8, type=int, help='Image Size')
     parser.add_argument('--img_output_size', default=32, type=int, help='Image Size')
     parser.add_argument('--cifar_data_path', required=True,
@@ -87,9 +86,7 @@ def train_model(
     )
 
     history = {}
-    best_val_loss = 1e6
     for epoch in range(0, args.epochs):
-
         train_loss = train(net, train_dataloader, criterion, optimizer, device)
         val_loss = validate(net, val_dataloader, criterion, device)
         scheduler.step()
@@ -101,20 +98,11 @@ def train_model(
             train_acc=0.0,
             val_acc=0.0
         )
+        if epoch % 10 == 0:
+            checkpoint(net, history, args.checkpoint_path, f'model-{epoch}.pt')
 
-        if val_loss < best_val_loss:
-            checkpoint(net, history, args.checkpoint_path)
-            best_val_loss = val_loss
-            early_stopping_counter = 0
-        else:
-            early_stopping_counter += 1
-
-        # Stop the training if the val does not improve
-        if early_stopping_counter > args.early_stopping_patience:
-            print("Validation loss has not improved in {} epochs, stopping early".format(
-                args.early_stopping_patience))
-            print("Obtained lowest validation loss of: {}".format(best_val_loss))
-            break
+    # Save for the last time
+    checkpoint(net, history, args.checkpoint_path, 'final_model.pt')
 
     return history
 

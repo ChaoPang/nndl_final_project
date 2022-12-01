@@ -59,7 +59,8 @@ def create_arg_parser():
 def checkpoint(
         net,
         history,
-        checkpoint_path
+        checkpoint_path,
+        model_name
 ):
     """Saves the current encoder and decoder models, along with idx_dict, which
     contains the char_to_index and index_to_char mappings, and the start_token
@@ -68,7 +69,7 @@ def checkpoint(
 
     create_dir_if_not_exists(checkpoint_path)
 
-    with open(os.path.join(checkpoint_path, MODEL_NAME), 'wb') as f:
+    with open(os.path.join(checkpoint_path, model_name), 'wb') as f:
         torch.save(net, f)
 
     with open(os.path.join(checkpoint_path, 'history.pickle'), 'wb') as f:
@@ -357,7 +358,7 @@ def training_loop(
         )
 
         if val_loss < best_val_loss:
-            checkpoint(net, history, checkpoint_path)
+            checkpoint(net, history, checkpoint_path, MODEL_NAME)
             best_val_loss = val_loss
             early_stopping_counter = 0
         else:
