@@ -4,14 +4,18 @@ import pickle
 import argparse
 import numpy as np
 import pandas as pd
+import torch.nn.functional
 
 import torch.optim as optim
+import torchvision.transforms
 from torch.utils.data import DataLoader
 
 from data_processing.dataset import ProjectDataSet, CifarValidationDataset
 from models.finetune_pretrained import *
 
 from utils.utils import progress_bar
+from utils.compute_mean_std import calculate_stats
+
 import matplotlib.pyplot as plt
 
 MODEL_NAME = 'best_model.pt'
@@ -92,20 +96,28 @@ def train(
         criterion,
         optimizer,
         device,
-        up_sampler: nn.Module = None
+        data_stats,
+        up_sampler: nn.Module = None,
 ):
     if up_sampler:
         up_sampler.eval()
+
+    data_normalizer = torchvision.transforms.Normalize(*data_stats)
 
     net.train()
 
     train_loss = 0
     correct = 0
     total = 0
+
     for batch_idx, (inputs, targets) in enumerate(train_loader):
         inputs, targets = inputs.to(device), targets.to(device)
+
         if up_sampler:
             inputs = up_sampler(inputs)
+
+        inputs = data_normalizer(inputs)
+
         optimizer.zero_grad()
         outputs = net(inputs)
         loss = criterion(outputs, targets)
@@ -130,10 +142,13 @@ def validate(
         val_loader,
         criterion,
         device,
+        data_stats,
         up_sampler: nn.Module = None
 ):
     if up_sampler:
         up_sampler.eval()
+
+    data_normalizer = torchvision.transforms.Normalize(*data_stats)
 
     net.eval()
     val_loss = 0
@@ -144,6 +159,9 @@ def validate(
             inputs, targets = inputs.to(device), targets.to(device)
             if up_sampler:
                 inputs = up_sampler(inputs)
+
+            inputs = data_normalizer(inputs)
+
             outputs = net(inputs)
             loss = criterion(outputs, targets)
 
@@ -170,6 +188,10 @@ def predict(
         test_set, batch_size=128, num_workers=4
     )
 
+    print('Calculating Test set stats')
+    data_stats = calculate_stats(data_loader)
+    data_normalizer = torchvision.transforms.Normalize(*data_stats)
+
     net.eval()
     predictions = []
     labels = []
@@ -177,6 +199,7 @@ def predict(
     total = 0
     with torch.no_grad():
         for batch_idx, (inputs, targets) in enumerate(data_loader):
+            inputs = data_normalizer(inputs)
             outputs = net(inputs.to(device))
             predicted = torch.argmax(outputs, dim=-1)
             predictions.append(predicted.detach().cpu().numpy())
@@ -362,7 +385,7 @@ def update_metrics(
 def training_loop(
         net,
         train_dataloader,
-        test_dataloader,
+        val_dataloader,
         criterion,
         optimizer,
         scheduler,
@@ -375,6 +398,12 @@ def training_loop(
     early_stopping_counter = 0
     best_val_loss = 1e6
 
+    print('Calculating Train set stats')
+    train_stats = calculate_stats(train_dataloader)
+
+    print('Calculating Val set stats')
+    val_stats = calculate_stats(val_dataloader)
+
     history = {}
 
     for epoch in range(0, epochs):
@@ -385,9 +414,17 @@ def training_loop(
             criterion,
             optimizer,
             device,
+            train_stats,
             up_sampler
         )
-        val_loss, val_acc = validate(net, test_dataloader, criterion, device, up_sampler)
+        val_loss, val_acc = validate(
+            net,
+            val_dataloader,
+            criterion,
+            device,
+            val_stats,
+            up_sampler
+        )
         scheduler.step()
 
         update_metrics(

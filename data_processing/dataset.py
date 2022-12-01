@@ -37,6 +37,10 @@ def get_cifar100_transformers(img_size):
     return transform
 
 
+def get_cifar100_normalizer():
+    return torchvision.transforms.Normalize(*((0.5074, 0.4867, 0.4411), (0.2011, 0.1987, 0.2025)))
+
+
 def get_cifar10_transformers(img_size):
     transform = torchvision.transforms.Compose([
         torchvision.transforms.Resize(img_size),
@@ -46,6 +50,10 @@ def get_cifar10_transformers(img_size):
         #       (0.24703233, 0.24348505, 0.26158768)))
     ])
     return transform
+
+
+def get_project_data_normalizer():
+    return transforms.Normalize((0.4707, 0.4431, 0.3708), (0.1577, 0.1587, 0.1783))
 
 
 class ProjectDataSet(Dataset):
@@ -124,9 +132,6 @@ class ProjectDataSet(Dataset):
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         img = Image.fromarray(img)
         img = self._get_transformers()(img)
-        # if self._up_sampler:
-        #     img = self._up_sampler(img.unsqueeze(0))
-        #     img = img.squeeze(0)
         return img, self._label_dict.get(self._file_names[idx], 0)
 
     def __len__(self):
@@ -222,4 +227,3 @@ class CifarValidationDataset(Dataset):
         cifar100_train.targets = y
 
         return cifar100_train
-
