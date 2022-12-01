@@ -245,19 +245,24 @@ def main(args):
     device = get_device()
 
     if args.up_sampler_path:
-        up_sampler = torch.load(args.up_sampler_path, map_location=device)
+        up_sampler = torch.load(
+            args.up_sampler_path,
+            map_location=device
+        )
     else:
         up_sampler = None
 
-    # net = ResNet101(num_classes=3)
-    # net = FinetuneResnet152(num_classes=3)
-    # net = FinetuneRegNet(num_classes=3)
-    # net = FinetuneEfficientNetB7(num_classes=3)
+    img_size = 32 if args.up_sampler_path else args.img_size
+    # net = ResNet101(num_classes=3, img_size=img_size)
+    # net = FinetuneResnet152(num_classes=3, img_size=img_size)
+    # net = FinetuneRegNet(num_classes=3, img_size=img_size)
+    # net = FinetuneEfficientNetB7(num_classes=3, img_size=img_size)
     net = FinetuneEnsembleModel(
         num_classes=3,
         dropout_rate=args.dropout_rate,
         freeze_weight=args.freeze_weight,
-        device=device
+        device=device,
+        img_size=img_size
     )
     net = net.to(device)
 
