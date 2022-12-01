@@ -58,7 +58,7 @@ def train_model(
         train_set, batch_size=128, shuffle=True, num_workers=4
     )
 
-    criterion = nn.MSELoss()
+    criterion = nn.MSELoss(reduction='sum')
     # criterion = nn.BCELoss()
     optimizer = torch.optim.Adam(
         net.parameters(), lr=args.lr, weight_decay=1e-4, eps=0.001
