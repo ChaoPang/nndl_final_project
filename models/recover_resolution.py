@@ -37,9 +37,7 @@ class ConvAutoEncoder(nn.Module):
         super(ConvAutoEncoder, self).__init__()
 
         self._encoder = nn.Sequential(
-            nn.Conv2d(3, 8, 3, stride=1, padding=1),
-            nn.ReLU(True),
-            nn.Conv2d(8, 16, 3, stride=2, padding=1),
+            nn.Conv2d(3, 16, 3, stride=2, padding=1),
             nn.BatchNorm2d(16),
             nn.ReLU(True),
             nn.Conv2d(16, 32, 3, stride=2, padding=1),
@@ -75,8 +73,7 @@ class ConvAutoEncoder(nn.Module):
             nn.ConvTranspose2d(8, 4, 3, stride=2, padding=1, output_padding=1),
             nn.BatchNorm2d(4),
             nn.ReLU(True),
-            nn.ConvTranspose2d(4, 3, 3, stride=2, padding=1, output_padding=1),
-            nn.Sigmoid()
+            nn.ConvTranspose2d(4, 3, 3, stride=2, padding=1, output_padding=1)
         )
 
     def forward(self, x: Tensor) -> Tensor:
