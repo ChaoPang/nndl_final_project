@@ -55,8 +55,8 @@ class ProjectDataSet(Dataset):
             is_training=True,
             is_superclass=True,
             img_size=8,
-            normalize=True
-            # up_sampler: nn.Module = None
+            normalize=True,
+            up_sampler: nn.Module = None
     ):
         self._image_folder_path = image_folder_path
         self._data_label_path = data_label_path
@@ -66,11 +66,11 @@ class ProjectDataSet(Dataset):
         self._is_training = data_label_path is not None
         self._img_size = img_size
         self._normalize = normalize
-        # self._up_sampler = up_sampler
-        #
-        # if self._up_sampler:
-        #     assert self._img_size == 8, 'The up sampler only supports 8 by 8 images'
-        #     self._up_sampler.eval()
+        self._up_sampler = up_sampler
+
+        if self._up_sampler:
+            assert self._img_size == 8, 'The up sampler only supports 8 by 8 images'
+            self._up_sampler.eval()
 
         self._label_dict = self._get_class_label(
             data_label_path
@@ -93,24 +93,31 @@ class ProjectDataSet(Dataset):
             )
         return dict()
 
+    def _get_resize_transformer(self):
+        # If the up sampler is unspecified, we simply resize the image
+        def up_sample_image(img: torch.Tensor) -> torch.Tensor:
+            out = self._up_sampler(torch.unsqueeze(img, 0))
+            return torch.unsqueeze(out, 0)
+
+        if self._up_sampler:
+            return transforms.Lambda(up_sample_image)
+
+        return transforms.Resize(self._img_size)
+
     def _get_transformers(self):
         transformers = []
         if self._is_training:
             transformers.extend([
-                transforms.Resize(self._img_size),
                 transforms.RandomCrop(self._img_size, padding=self._img_size // 4),
                 transforms.RandomHorizontalFlip(),
-                transforms.ToTensor()
+                transforms.ToTensor(),
+                self._get_resize_transformer()
             ])
         else:
             transformers.extend([
-                transforms.Resize(self._img_size),
-                transforms.ToTensor()
+                transforms.ToTensor(),
+                self._get_resize_transformer()
             ])
-        #
-        # # If the up sampler is unspecified, we simply resize the image
-        # if not self._up_sampler:
-        #     transformers.insert(0, transforms.Resize(self._img_size))
 
         if self._normalize:
             transformers.append(
