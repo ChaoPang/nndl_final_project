@@ -52,7 +52,8 @@ class ProjectDataSet(Dataset):
             data_label_path: str = None,
             is_training=True,
             is_superclass=True,
-            img_size=8
+            img_size=8,
+            normalize=True
     ):
         self._image_folder_path = image_folder_path
         self._data_label_path = data_label_path
@@ -61,6 +62,7 @@ class ProjectDataSet(Dataset):
         self._is_superclass = is_superclass
         self._is_training = data_label_path is not None
         self._img_size = img_size
+        self._normalize = normalize
 
         self._label_dict = self._get_class_label(
             data_label_path
@@ -84,20 +86,24 @@ class ProjectDataSet(Dataset):
         return dict()
 
     def _get_transformers(self):
+        transformers = []
         if self._is_training:
-            return transforms.Compose([
+            transformers.extend([
                 transforms.Resize(self._img_size),
                 transforms.RandomCrop(self._img_size, padding=self._img_size // 4),
                 transforms.RandomHorizontalFlip(),
-                transforms.ToTensor(),
-                transforms.Normalize((0.4707, 0.4431, 0.3708), (0.1577, 0.1587, 0.1783)),
+                transforms.ToTensor()
+            ])
+        else:
+            transformers.extend([
+                transforms.Resize(self._img_size),
+                transforms.ToTensor()
             ])
 
-        return transforms.Compose([
-            transforms.Resize(self._img_size),
-            transforms.ToTensor(),
-            transforms.Normalize((0.4707, 0.4431, 0.3708), (0.1577, 0.1587, 0.1783)),
-        ])
+        if self._normalize:
+            transformers.append(
+                transforms.Normalize((0.4707, 0.4431, 0.3708), (0.1577, 0.1587, 0.1783)))
+        return transforms.Compose(transformers)
 
     def __getitem__(self, idx):
         image_filepath = os.path.join(self._image_folder_path, self._file_names[idx])
