@@ -214,7 +214,8 @@ class RecoverResolutionCifarDataset(Dataset):
             self._get_cifar10_dataset(),
             self._get_cifar100_dataset()
         ])
-        self._resize_transformer = torchvision.transforms.Resize(self._img_input_size)
+        self._resize_input_transformer = torchvision.transforms.Resize(self._img_input_size)
+        self._resize_output_transformer = torchvision.transforms.Resize(self._img_output_size)
 
     def _get_cifar10_dataset(self):
         transformers = get_cifar10_transformers(self._img_output_size)
@@ -254,10 +255,11 @@ class RecoverResolutionCifarDataset(Dataset):
 
     def __getitem__(self, index):
         img, _ = self._cifar_dataset[index]
-        return self._resize_transformer(img), img
+        return self._resize_input_transformer(img), self._resize_output_transformer(img)
 
     def __len__(self):
         return len(self._cifar_dataset)
+
 
 # Credits goes to https://github.com/ryanchankh/cifar100coarse
 class CIFAR100Coarse(CIFAR100):
