@@ -40,10 +40,8 @@ class ConvAutoEncoder(nn.Module):
             nn.Conv2d(3, 8, 3, stride=1, padding=1),
             nn.ReLU(True),
             nn.Conv2d(8, 16, 3, stride=2, padding=1),
-            nn.BatchNorm2d(16),
             nn.ReLU(True),
             nn.Conv2d(16, 32, 3, stride=2, padding=1),
-            nn.BatchNorm2d(32),
             nn.ReLU(True)
         )
 
@@ -67,13 +65,10 @@ class ConvAutoEncoder(nn.Module):
 
         self._decoder = nn.Sequential(
             nn.ConvTranspose2d(32, 16, 3, stride=2, padding=1, output_padding=1),
-            nn.BatchNorm2d(16),
             nn.ReLU(True),
             nn.ConvTranspose2d(16, 8, 3, stride=2, padding=1, output_padding=1),
-            nn.BatchNorm2d(8),
             nn.ReLU(True),
             nn.ConvTranspose2d(8, 4, 3, stride=2, padding=1, output_padding=1),
-            nn.BatchNorm2d(4),
             nn.ReLU(True),
             nn.ConvTranspose2d(4, 3, 3, stride=2, padding=1, output_padding=1),
             nn.Sigmoid()
