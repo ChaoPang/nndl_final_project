@@ -76,6 +76,7 @@ class ConvAutoEncoder(nn.Module):
             nn.BatchNorm2d(4),
             nn.ReLU(True),
             nn.ConvTranspose2d(4, 3, 3, stride=2, padding=1, output_padding=1),
+            nn.Sigmoid()
         )
 
     def forward(self, x: Tensor) -> Tensor:
