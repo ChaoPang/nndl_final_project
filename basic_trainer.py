@@ -53,6 +53,8 @@ def create_arg_parser():
                         help='Using CIFAR data to test the model')
     parser.add_argument('--test_label', action='store_true',
                         help='Indicate whether the test label is available')
+    parser.add_argument('--up_sampler_path', required=False,
+                        help='Path to the up sampler')
     return parser
 
 

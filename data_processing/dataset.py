@@ -4,6 +4,8 @@ from typing import List
 
 import numpy as np
 import pandas as pd
+
+from torch import nn
 import torch.utils.data
 from torch.utils.data import Dataset
 import torchvision
@@ -53,7 +55,8 @@ class ProjectDataSet(Dataset):
             is_training=True,
             is_superclass=True,
             img_size=8,
-            normalize=True
+            normalize=True,
+            up_sampler: nn.Module = None
     ):
         self._image_folder_path = image_folder_path
         self._data_label_path = data_label_path
@@ -63,6 +66,11 @@ class ProjectDataSet(Dataset):
         self._is_training = data_label_path is not None
         self._img_size = img_size
         self._normalize = normalize
+        self._up_sampler = up_sampler
+
+        if self._up_sampler:
+            self._up_sampler.eval()
+            self._up_sampler.no_grad()
 
         self._label_dict = self._get_class_label(
             data_label_path
@@ -111,6 +119,8 @@ class ProjectDataSet(Dataset):
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         img = Image.fromarray(img)
         img = self._get_transformers()(img)
+        if self._up_sampler:
+            img = self._up_sampler(img)
         return img, self._label_dict.get(self._file_names[idx], 0)
 
     def __len__(self):
