@@ -4,7 +4,7 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader
 from data_processing.dataset import RecoverResolutionCifarDataset
-from models.recover_resolution import ConvAutoEncoder
+from models.recover_resolution import ConvAutoEncoder, ConvAutoEncoderV2
 from basic_trainer import plot_training_loss, update_metrics, checkpoint
 
 from utils.utils import progress_bar
@@ -51,7 +51,8 @@ def main(args):
     #     img_output_size=args.img_output_size
     # )
 
-    net = ConvAutoEncoder()
+    # net = ConvAutoEncoder()
+    net = ConvAutoEncoderV2()
     net = net.to(device)
 
     history = train_model(net, train_set, val_set, args, device)

@@ -33,8 +33,15 @@ class RecoverHighResolution(nn.Sequential):
 
 
 class ConvAutoEncoder(nn.Module):
-    def __init__(self):
+    def __init__(
+            self,
+            img_input_size,
+            img_output_size
+    ):
         super(ConvAutoEncoder, self).__init__()
+
+        self._img_input_size = img_input_size
+        self._img_output_size = img_output_size
 
         self._encoder = nn.Sequential(
             nn.Conv2d(3, 16, 3, stride=2, padding=1),
@@ -84,6 +91,71 @@ class ConvAutoEncoder(nn.Module):
         decoder_out = self._decoder_lin(out)
         decoder_out = self._decoder_unflatten(decoder_out)
         decoder_out = self._decoder(decoder_out)
+
+        return decoder_out
+
+
+class ConvAutoEncoderV2(nn.Module):
+    def __init__(
+            self
+    ):
+        super(ConvAutoEncoderV2, self).__init__()
+
+        self._encoder_layer_1 = nn.Sequential(
+            nn.Conv2d(3, 16, 3, stride=1, padding=1),  # (16, 8, 8)
+            nn.BatchNorm2d(16),
+            nn.ReLU(True)
+        )
+
+        self._encoder_layer_2 = nn.Sequential(
+            nn.Conv2d(16, 32, 3, stride=2, padding=1),  # (32, 4, 4)
+            nn.BatchNorm2d(32),
+            nn.ReLU(True)
+        )
+
+        self._encoder_layer_3 = nn.Sequential(
+            nn.Conv2d(32, 64, 3, stride=2, padding=1),  # (64, 2, 2)
+            nn.BatchNorm2d(64),
+            nn.ReLU(True)
+        )
+
+        self._decoder_layer_1 = nn.Sequential(
+            nn.ConvTranspose2d(64, 32, 3, stride=2, padding=1, output_padding=1),  # (32, 4, 4)
+            nn.BatchNorm2d(32),
+            nn.ReLU(True)
+        )
+
+        self._decoder_layer_2 = nn.Sequential(
+            nn.ConvTranspose2d(32, 16, 3, stride=2, padding=1, output_padding=1),  # (16, 8, 8)
+            nn.BatchNorm2d(16),
+            nn.ReLU(True)
+        )
+
+        self._decoder_layer_3 = nn.Sequential(
+            nn.ConvTranspose2d(16, 8, 3, stride=2, padding=1, output_padding=1),  # (8, 16, 16)
+            nn.BatchNorm2d(8),
+            nn.ReLU(True)
+        )
+
+        self._decoder_layer_4 = nn.Sequential(
+            nn.ConvTranspose2d(8, 3, 3, stride=2, padding=1, output_padding=1),  # (3, 32, 32)
+            nn.BatchNorm2d(3),
+            nn.ReLU(True)
+        )
+
+    def forward(self, x: Tensor) -> Tensor:
+        out1 = self._encoder_layer_1(x)
+        out2 = self._encoder_layer_2(out1)
+        encoder_out = self._encoder_layer_3(out2)
+
+        decoder_out_1 = self._decoder_layer_1(encoder_out)
+        decoder_out_1 = decoder_out_1 + out2
+
+        decoder_out_2 = self._decoder_layer_2(decoder_out_1)
+        decoder_out_2 = decoder_out_2 + out1
+
+        decoder_out_3 = self._decoder_layer_3(decoder_out_2)
+        decoder_out = self._decoder_layer_4(decoder_out_3)
 
         return decoder_out
 
