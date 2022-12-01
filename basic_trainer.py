@@ -198,8 +198,8 @@ def train_model(
     optimizer = optim.Adam(
         net.parameters(), lr=args.lr, weight_decay=1e-4, eps=0.1
     )
-    # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
-    scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
+
     history = training_loop(
         net,
         train_dataloader,

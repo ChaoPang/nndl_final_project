@@ -18,10 +18,6 @@ def get_all_filenames(
     all_file_names = []
     for _, _, field_names in os.walk(path):
         all_file_names.extend([f for f in field_names if 'jpg' in f])
-
-    # Sort the file names in alphabetical order
-    # This is crucial otherwise all evaluation metrics would be messed up
-    all_file_names = sorted(all_file_names, key=lambda f: int(f[:-4]))
     return all_file_names
 
 
