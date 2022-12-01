@@ -91,14 +91,21 @@ def train(
         train_loader,
         criterion,
         optimizer,
-        device
+        device,
+        up_sampler: nn.Module = None
 ):
+    if up_sampler:
+        up_sampler.eval()
+
     net.train()
+
     train_loss = 0
     correct = 0
     total = 0
     for batch_idx, (inputs, targets) in enumerate(train_loader):
         inputs, targets = inputs.to(device), targets.to(device)
+        if up_sampler:
+            inputs = up_sampler(inputs)
         optimizer.zero_grad()
         outputs = net(inputs)
         loss = criterion(outputs, targets)
@@ -122,8 +129,12 @@ def validate(
         net,
         val_loader,
         criterion,
-        device
+        device,
+        up_sampler: nn.Module = None
 ):
+    if up_sampler:
+        up_sampler.eval()
+
     net.eval()
     val_loss = 0
     correct = 0
@@ -131,6 +142,8 @@ def validate(
     with torch.no_grad():
         for batch_idx, (inputs, targets) in enumerate(val_loader):
             inputs, targets = inputs.to(device), targets.to(device)
+            if up_sampler:
+                inputs = up_sampler(inputs)
             outputs = net(inputs)
             loss = criterion(outputs, targets)
 
@@ -187,7 +200,8 @@ def train_model(
         train_set,
         val_set,
         args,
-        device
+        device,
+        up_sampler: nn.Module = None
 ):
     train_dataloader = DataLoader(
         train_set, batch_size=128, shuffle=True, num_workers=4
@@ -213,19 +227,28 @@ def train_model(
         args.epochs,
         device,
         args.early_stopping_patience,
-        args.checkpoint_path
+        args.checkpoint_path,
+        up_sampler
     )
 
     return history
 
 
-def main(args):
-    # Data
+def get_device():
+    return 'cuda' if torch.cuda.is_available() else 'cpu'
 
+
+def main(args):
     train_set, val_set, test_set = create_datasets(args)
 
     # Initialize the model
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    device = get_device()
+
+    if args.up_sampler_path:
+        up_sampler = torch.load(args.up_sampler_path, map_location=device)
+    else:
+        up_sampler = None
+
     # net = ResNet101(num_classes=3)
     # net = FinetuneResnet152(num_classes=3)
     # net = FinetuneRegNet(num_classes=3)
@@ -238,7 +261,7 @@ def main(args):
     )
     net = net.to(device)
 
-    history = train_model(net, train_set, val_set, args, device)
+    history = train_model(net, train_set, val_set, args, device, up_sampler)
 
     net = torch.load(os.path.join(args.checkpoint_path, MODEL_NAME))
     predictions_pd = predict(net, test_set, device, args.test_label)
@@ -279,11 +302,13 @@ def create_datasets(
         img_size=args.img_size
     )
 
+    # If the up sampler is enabled, we use the default 32 by 32 image for validation
+    cifar_img_size = 32 if args.up_sampler_path else args.img_size
     # Use the CIFAR data as the external validation set
     val_set = CifarValidationDataset(
         cifar_data_folder=args.cifar_data_path,
         download=True,
-        img_size=args.img_size
+        img_size=cifar_img_size
     )
 
     if not args.external_validation:
@@ -338,7 +363,8 @@ def training_loop(
         epochs,
         device,
         early_stopping_patience,
-        checkpoint_path
+        checkpoint_path,
+        up_sampler: nn.Module = None
 ):
     early_stopping_counter = 0
     best_val_loss = 1e6
@@ -347,8 +373,15 @@ def training_loop(
 
     for epoch in range(0, epochs):
 
-        train_loss, train_acc = train(net, train_dataloader, criterion, optimizer, device)
-        val_loss, val_acc = validate(net, test_dataloader, criterion, device)
+        train_loss, train_acc = train(
+            net,
+            train_dataloader,
+            criterion,
+            optimizer,
+            device,
+            up_sampler
+        )
+        val_loss, val_acc = validate(net, test_dataloader, criterion, device, up_sampler)
         scheduler.step()
 
         update_metrics(
