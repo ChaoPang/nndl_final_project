@@ -85,7 +85,7 @@ def train_model(
     )
 
     history = {}
-
+    best_val_loss = 1e6
     for epoch in range(0, args.epochs):
 
         train_loss = train(net, train_dataloader, criterion, optimizer, device)
@@ -108,7 +108,7 @@ def train_model(
             early_stopping_counter += 1
 
         # Stop the training if the val does not improve
-        if early_stopping_counter > args.arly_stopping_patience:
+        if early_stopping_counter > args.early_stopping_patience:
             print("Validation loss has not improved in {} epochs, stopping early".format(
                 args.early_stopping_patience))
             print("Obtained lowest validation loss of: {}".format(best_val_loss))
