@@ -303,12 +303,11 @@ def create_datasets(
     )
 
     # If the up sampler is enabled, we use the default 32 by 32 image for validation
-    cifar_img_size = 32 if args.up_sampler_path else args.img_size
     # Use the CIFAR data as the external validation set
     val_set = CifarValidationDataset(
         cifar_data_folder=args.cifar_data_path,
         download=True,
-        img_size=cifar_img_size
+        img_size=args.img_size
     )
 
     if not args.external_validation:
