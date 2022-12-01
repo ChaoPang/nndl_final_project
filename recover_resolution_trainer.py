@@ -23,24 +23,13 @@ def create_arg_parser():
     return parser
 
 
-def create_datasets(args):
+def main(args):
+    # Data
     dataset = RecoverResolutionCifarDataset(
         args.img_input_size,
         args.img_output_size,
         args.cifar_data_path
     )
-    total = len(dataset)
-    train_size = int(total * 0.9)
-    val_size = total - train_size
-    train_set, val_set = torch.utils.data.random_split(
-        dataset, [train_size, val_size]
-    )
-    return train_set, val_set
-
-
-def main(args):
-    # Data
-    train_set, val_set = create_datasets(args)
 
     # Initialize the model
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -54,7 +43,7 @@ def main(args):
     net = ConvAutoEncoderV2()
     net = net.to(device)
 
-    history = train_model(net, train_set, val_set, args, device)
+    history = train_model(net, dataset, args, device)
 
     plot_training_loss(history, args.checkpoint_path)
 
@@ -62,16 +51,11 @@ def main(args):
 def train_model(
         net,
         train_set,
-        val_set,
         args,
         device
 ):
     train_dataloader = DataLoader(
         train_set, batch_size=128, shuffle=True, num_workers=4
-    )
-
-    val_dataloader = DataLoader(
-        val_set, batch_size=128, shuffle=True, num_workers=4
     )
 
     criterion = nn.MSELoss()
@@ -88,13 +72,12 @@ def train_model(
     history = {}
     for epoch in range(0, args.epochs):
         train_loss = train(net, train_dataloader, criterion, optimizer, device)
-        val_loss = validate(net, val_dataloader, criterion, device)
         scheduler.step()
 
         update_metrics(
             history,
             train_loss=train_loss,
-            val_loss=val_loss,
+            val_loss=0.0,
             train_acc=0.0,
             val_acc=0.0
         )
@@ -134,30 +117,6 @@ def train(
     train_average_loss = train_loss / total
 
     return train_average_loss
-
-
-def validate(
-        net,
-        val_loader,
-        criterion,
-        device
-):
-    net.eval()
-    val_loss = 0
-    total = 0
-    with torch.no_grad():
-        for batch_idx, (inputs, targets) in enumerate(val_loader):
-            inputs, targets = inputs.to(device), targets.to(device)
-            outputs = net(inputs)
-            loss = criterion(outputs, targets)
-
-            val_loss += loss.item()
-            total += targets.size(0)
-
-            progress_bar(batch_idx, len(val_loader), 'Loss: %.3f' % (val_loss / (batch_idx + 1)))
-
-    val_average_loss = val_loss / total
-    return val_average_loss
 
 
 if __name__ == "__main__":
