@@ -42,6 +42,8 @@ def create_arg_parser():
     parser.add_argument('--dropout_rate', default=0.5, type=float, help='Dropout rate')
     parser.add_argument('--freeze_weight', action='store_true',
                         help='Whether or not we freeze the weights of the pretrained model')
+    parser.add_argument('--deep_feature', action='store_true',
+                        help='Whether or not extract the deep feature')
     parser.add_argument('--early_stopping_patience', default=10, type=int,
                         help='Early stopping patience')
     parser.add_argument('--img_size', default=8, type=int, help='Image Size')
@@ -59,6 +61,7 @@ def create_arg_parser():
                         help='Indicate whether the test label is available')
     parser.add_argument('--up_sampler_path', required=False,
                         help='Path to the up sampler')
+
     return parser
 
 
@@ -275,7 +278,6 @@ def main(args):
     else:
         up_sampler = None
 
-    img_size = 32 if args.up_sampler_path else args.img_size
     # net = ResNet101(num_classes=3, img_size=img_size)
     # net = FinetuneResnet152(num_classes=3, img_size=img_size)
     # net = FinetuneRegNet(num_classes=3, img_size=img_size)
@@ -285,7 +287,7 @@ def main(args):
         dropout_rate=args.dropout_rate,
         freeze_weight=args.freeze_weight,
         device=device,
-        img_size=img_size
+        deep_feature=args.deep_feature
     )
     net = net.to(device)
 
