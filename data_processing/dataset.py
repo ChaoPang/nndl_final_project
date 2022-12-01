@@ -25,6 +25,26 @@ def get_all_filenames(
     return all_file_names
 
 
+def get_cifar100_transformers(img_size):
+    transform = torchvision.transforms.Compose([
+        torchvision.transforms.Resize(img_size),
+        torchvision.transforms.ToTensor(),
+        torchvision.transforms.Normalize(*((0.5074, 0.4867, 0.4411), (0.2011, 0.1987, 0.2025)))
+    ])
+    return transform
+
+
+def get_cifar10_transformers(img_size):
+    transform = torchvision.transforms.Compose([
+        torchvision.transforms.Resize(img_size),
+        torchvision.transforms.ToTensor(),
+        torchvision.transforms.Normalize(
+            *((0.49139968, 0.48215827, 0.44653124),
+              (0.24703233, 0.24348505, 0.26158768)))
+    ])
+    return transform
+
+
 class ProjectDataSet(Dataset):
     def __init__(
             self,
@@ -108,13 +128,7 @@ class CifarValidationDataset(Dataset):
         return len(self._cifar_dataset)
 
     def _get_cifar10_dataset(self) -> CIFAR10:
-        transform = torchvision.transforms.Compose([
-            torchvision.transforms.Resize(self._img_size),
-            torchvision.transforms.ToTensor(),
-            torchvision.transforms.Normalize(
-                *((0.49139968, 0.48215827, 0.44653124),
-                  (0.24703233, 0.24348505, 0.26158768)))
-        ])
+        transform = get_cifar10_transformers(self._img_size)
         # Download the CIFAR10 Data
         cifar10_train = torchvision.datasets.CIFAR10(
             root=self._cifar_data_folder,
@@ -151,11 +165,7 @@ class CifarValidationDataset(Dataset):
         return cifar10_train
 
     def _get_cifar100_dataset(self) -> CIFAR100:
-        transform = torchvision.transforms.Compose([
-            torchvision.transforms.Resize(self._img_size),
-            torchvision.transforms.ToTensor(),
-            torchvision.transforms.Normalize(*((0.5074, 0.4867, 0.4411), (0.2011, 0.1987, 0.2025)))
-        ])
+        transform = get_cifar100_transformers(self._img_size)
         # Download the CIFAR100 Data
         cifar100_train = CIFAR100Coarse(
             root=self._cifar_data_folder,
@@ -186,6 +196,68 @@ class CifarValidationDataset(Dataset):
 
         return cifar100_train
 
+
+class RecoverResolutionCifarDataset(Dataset):
+
+    def __init__(
+            self,
+            img_input_size=8,
+            img_output_size=32,
+            cifar_data_folder='./data',
+            download=True
+    ):
+        self._img_input_size = img_input_size
+        self._img_output_size = img_output_size
+        self._cifar_data_folder = cifar_data_folder
+        self._download = download
+        self._cifar_dataset = torch.utils.data.ConcatDataset([
+            self._get_cifar10_dataset(),
+            self._get_cifar100_dataset()
+        ])
+        self._resize_transformer = torchvision.transforms.Resize(self._img_input_size)
+
+    def _get_cifar10_dataset(self):
+        transformers = get_cifar10_transformers(self._img_output_size)
+        cifar10_train = CIFAR10(
+            root=self._cifar_data_folder,
+            train=True,
+            download=self._download,
+            transform=transformers
+        )
+        cifar10_test = CIFAR10(
+            root=self._cifar_data_folder,
+            train=False,
+            download=self._download,
+            transform=transformers
+        )
+        return torch.utils.data.ConcatDataset([
+            cifar10_train, cifar10_test
+        ])
+
+    def _get_cifar100_dataset(self):
+        transformers = get_cifar100_transformers(self._img_output_size)
+        cifar100_train = CIFAR100Coarse(
+            root=self._cifar_data_folder,
+            train=True,
+            download=self._download,
+            transform=transformers
+        )
+        cifar100_test = CIFAR100Coarse(
+            root=self._cifar_data_folder,
+            train=False,
+            download=self._download,
+            transform=transformers
+        )
+        return torch.utils.data.ConcatDataset([
+            cifar100_train, cifar100_test
+        ])
+
+    def __getitem__(self, index):
+        img, _ = self._cifar_dataset[index]
+        return self._resize_transformer(img), img
+
+    def __len__(self):
+        return len(self._cifar_dataset)
 
 # Credits goes to https://github.com/ryanchankh/cifar100coarse
 class CIFAR100Coarse(CIFAR100):

@@ -9,7 +9,6 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 
 from data_processing.dataset import ProjectDataSet, CifarValidationDataset
-from models.resnet import *
 from models.finetune_pretrained import *
 
 from utils.utils import progress_bar
@@ -245,6 +244,10 @@ def main(args):
         index=False
     )
 
+    plot_training_loss(history, args.checkpoint_path)
+
+
+def plot_training_loss(history, checkpoint_path):
     # Plot training curve
     plt.figure()
     plt.plot(history['train_loss'], "ro-", label="Train")
@@ -252,7 +255,7 @@ def main(args):
     plt.legend()
     plt.title("Loss")
     plt.xlabel("Epochs")
-    plt.savefig(args.checkpoint_path + "/training_curve.png")
+    plt.savefig(checkpoint_path + "/training_curve.png")
 
 
 def create_datasets(
