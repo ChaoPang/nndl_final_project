@@ -4,7 +4,7 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader
 from data_processing.dataset import RecoverResolutionCifarDataset
-from models.recover_resolution import create_recover_resolution_net
+from models.recover_resolution import ConvAutoEncoder
 from basic_trainer import plot_training_loss, update_metrics, checkpoint
 
 from utils.utils import progress_bar
@@ -41,17 +41,17 @@ def create_datasets(args):
 
 def main(args):
     # Data
-
     train_set, val_set = create_datasets(args)
 
     # Initialize the model
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-    net = create_recover_resolution_net(
-        img_input_size=args.img_input_size,
-        img_output_size=args.img_output_size
-    )
+    # net = create_recover_resolution_net(
+    #     img_input_size=args.img_input_size,
+    #     img_output_size=args.img_output_size
+    # )
 
+    net = ConvAutoEncoder()
     net = net.to(device)
 
     history = train_model(net, train_set, val_set, args, device)
