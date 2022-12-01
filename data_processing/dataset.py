@@ -69,6 +69,7 @@ class ProjectDataSet(Dataset):
         self._up_sampler = up_sampler
 
         if self._up_sampler:
+            assert self._img_size == 32, 'The up sampler only supports 32 by 32 images'
             self._up_sampler.eval()
             self._up_sampler.no_grad()
 
@@ -97,16 +98,19 @@ class ProjectDataSet(Dataset):
         transformers = []
         if self._is_training:
             transformers.extend([
-                transforms.Resize(self._img_size),
+
                 transforms.RandomCrop(self._img_size, padding=self._img_size // 4),
                 transforms.RandomHorizontalFlip(),
                 transforms.ToTensor()
             ])
         else:
             transformers.extend([
-                transforms.Resize(self._img_size),
                 transforms.ToTensor()
             ])
+
+        # If the up sampler is unspecified, we simply resize the image
+        if not self._up_sampler:
+            transformers.insert(0, transforms.Resize(self._img_size))
 
         if self._normalize:
             transformers.append(
@@ -128,7 +132,12 @@ class ProjectDataSet(Dataset):
 
 
 class CifarValidationDataset(Dataset):
-    def __init__(self, img_size=8, cifar_data_folder='./data', download=True):
+    def __init__(
+            self,
+            img_size=8,
+            cifar_data_folder='./data',
+            download=True
+    ):
         self._img_size = img_size
         self._cifar_data_folder = cifar_data_folder
         self._download = download
