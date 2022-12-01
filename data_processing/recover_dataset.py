@@ -3,6 +3,7 @@ import torch.utils
 import torchvision
 from torch.utils.data import Dataset
 from torchvision.datasets import CIFAR10, CIFAR100, Caltech101, Caltech256
+from PIL import Image
 
 
 class RecoverResolutionCifarDataset(Dataset):
@@ -49,7 +50,6 @@ class RecoverResolutionCifarDataset(Dataset):
         ])
 
     def _get_cifar100_dataset(self):
-
         cifar100_train = CIFAR100Coarse(
             root=self._cifar_data_folder,
             train=True,
@@ -66,7 +66,8 @@ class RecoverResolutionCifarDataset(Dataset):
 
     def _get_caltech101_dataset(self):
         transformers = torchvision.transforms.Compose([
-            torchvision.transforms.Lambda(lambda x: x.convert('RGB'))
+            torchvision.transforms.Lambda(lambda x: x.convert('RGB')),
+            torchvision.transforms.Resize((self._img_output_size, self._img_output_size))
         ])
         caltech101 = Caltech101(
             root=self._cifar_data_folder,
@@ -77,7 +78,8 @@ class RecoverResolutionCifarDataset(Dataset):
 
     def _get_caltech256_dataset(self):
         transformers = torchvision.transforms.Compose([
-            torchvision.transforms.Lambda(lambda x: x.convert('RGB'))
+            torchvision.transforms.Lambda(lambda x: x.convert('RGB')),
+            torchvision.transforms.Resize((self._img_output_size, self._img_output_size))
         ])
         caltech256 = Caltech256(
             root=self._cifar_data_folder,
