@@ -31,7 +31,7 @@ def get_cifar100_transformers(img_size):
     transform = torchvision.transforms.Compose([
         torchvision.transforms.Resize(img_size),
         torchvision.transforms.ToTensor(),
-        torchvision.transforms.Normalize(*((0.5074, 0.4867, 0.4411), (0.2011, 0.1987, 0.2025)))
+        # torchvision.transforms.Normalize(*((0.5074, 0.4867, 0.4411), (0.2011, 0.1987, 0.2025)))
     ])
     return transform
 
@@ -40,9 +40,9 @@ def get_cifar10_transformers(img_size):
     transform = torchvision.transforms.Compose([
         torchvision.transforms.Resize(img_size),
         torchvision.transforms.ToTensor(),
-        torchvision.transforms.Normalize(
-            *((0.49139968, 0.48215827, 0.44653124),
-              (0.24703233, 0.24348505, 0.26158768)))
+        # torchvision.transforms.Normalize(
+        #     *((0.49139968, 0.48215827, 0.44653124),
+        #       (0.24703233, 0.24348505, 0.26158768)))
     ])
     return transform
 
