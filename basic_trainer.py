@@ -10,11 +10,10 @@ import torch.optim as optim
 from torchvision import transforms
 from torch.utils.data import DataLoader
 
-from data_processing.dataset import ProjectDataSet, CifarValidationDataset
+from data_processing.dataset import ProjectDataSet, CifarValidationDataset, get_data_normalize
 from models.finetune_pretrained import *
 
 from utils.utils import progress_bar
-from utils.compute_mean_std import calculate_stats
 
 import matplotlib.pyplot as plt
 
@@ -66,6 +65,8 @@ def create_arg_parser():
                         help='Indicate whether the test label is available')
     parser.add_argument('--up_sampler_path', required=False,
                         help='Path to the up sampler')
+    parser.add_argument('--img_upsampled_size', required='--up_sampler_path' in sys.argv, type=int,
+                        help='img upsampled size by auto encoder')
 
     return parser
 
@@ -115,13 +116,16 @@ def train(
     correct = 0
     total = 0
 
+    # Get normalize transform
+    data_normalize_transform = get_data_normalize()
+
     for batch_idx, (inputs, targets) in enumerate(train_loader):
         inputs, targets = inputs.to(device), targets.to(device)
 
         if up_sampler:
             inputs = up_sampler(inputs)
 
-        inputs = pretrained_normalize(inputs)
+        inputs = data_normalize_transform(inputs)
 
         optimizer.zero_grad()
         outputs = net(inputs)
@@ -146,12 +150,8 @@ def validate(
         net,
         val_loader,
         criterion,
-        device,
-        up_sampler: nn.Module = None
+        device
 ):
-    if up_sampler:
-        up_sampler.eval()
-
     net.eval()
     val_loss = 0
     correct = 0
@@ -159,10 +159,6 @@ def validate(
     with torch.no_grad():
         for batch_idx, (inputs, targets) in enumerate(val_loader):
             inputs, targets = inputs.to(device), targets.to(device)
-            if up_sampler:
-                inputs = up_sampler(inputs)
-
-            inputs = pretrained_normalize(inputs)
 
             outputs = net(inputs)
             loss = criterion(outputs, targets)
@@ -190,6 +186,9 @@ def predict(
         test_set, batch_size=128, num_workers=4
     )
 
+    # Get normalize transform
+    data_normalize_transform = get_data_normalize()
+
     net.eval()
     predictions = []
     labels = []
@@ -197,7 +196,7 @@ def predict(
     total = 0
     with torch.no_grad():
         for batch_idx, (inputs, targets) in enumerate(data_loader):
-            inputs = pretrained_normalize(inputs)
+            inputs = data_normalize_transform(inputs)
             outputs = net(inputs.to(device))
             predicted = torch.argmax(outputs, dim=-1)
             predictions.append(predicted.detach().cpu().numpy())
@@ -273,10 +272,9 @@ def main(args):
     else:
         up_sampler = None
 
-    # net = ResNet101(num_classes=3, img_size=img_size)
-    # net = FinetuneResnet152(num_classes=3, img_size=img_size)
+    # net = FinetuneResnet152(num_classes=3, deep_feature=args.deep_feature)
     net = FinetuneRegNet(num_classes=3, deep_feature=args.deep_feature)
-    # net = FinetuneEfficientNetB7(num_classes=3, img_size=img_size)
+    # net = FinetuneEfficientNetB7(num_classes=3, deep_feature=args.deep_feature)
     # net = FinetuneEnsembleModel(
     #     num_classes=3,
     #     dropout_rate=args.dropout_rate,
@@ -334,7 +332,7 @@ def create_datasets(
     val_set = CifarValidationDataset(
         cifar_data_folder=args.cifar_data_path,
         download=True,
-        img_size=args.img_size
+        img_size=args.img_upsampled_size if args.up_sampler_path else args.img_size
     )
 
     if not args.external_validation:
@@ -411,8 +409,7 @@ def training_loop(
             net,
             val_dataloader,
             criterion,
-            device,
-            up_sampler
+            device
         )
         scheduler.step()
 

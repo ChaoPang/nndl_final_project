@@ -31,7 +31,11 @@ def get_all_filenames(
 def get_cifar100_transformers(img_size):
     transform = torchvision.transforms.Compose([
         torchvision.transforms.Resize(img_size),
-        torchvision.transforms.ToTensor()
+        torchvision.transforms.ToTensor(),
+        torchvision.transforms.Normalize(
+            mean=[0.5074, 0.4867, 0.4411],
+            std=[0.2011, 0.1987, 0.2025]
+        )
     ])
     return transform
 
@@ -40,8 +44,18 @@ def get_cifar10_transformers(img_size):
     transform = torchvision.transforms.Compose([
         torchvision.transforms.Resize(img_size),
         torchvision.transforms.ToTensor(),
+        torchvision.transforms.Normalize(
+            mean=[0.49139968, 0.48215827, 0.44653124],
+            std=[0.24703233, 0.24348505, 0.26158768])
     ])
     return transform
+
+
+def get_data_normalize():
+    return transforms.Normalize(
+        mean=[0.4707, 0.4431, 0.3708],
+        std=[0.1577, 0.1587, 0.1783]
+    )
 
 
 class ProjectDataSet(Dataset):
@@ -98,10 +112,6 @@ class ProjectDataSet(Dataset):
                 transforms.Resize(self._img_size),
                 transforms.ToTensor()
             ])
-        #
-        # # If the up sampler is unspecified, we simply resize the image
-        # if not self._up_sampler:
-        #     transformers.insert(0, transforms.Resize(self._img_size))
 
         if self._normalize:
             transformers.append(
