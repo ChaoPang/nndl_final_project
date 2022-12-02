@@ -98,6 +98,7 @@ class ConvAutoEncoder(nn.Module):
 class ConvAutoEncoderV2(nn.Module):
     def __init__(
             self
+
     ):
         super(ConvAutoEncoderV2, self).__init__()
 
@@ -132,16 +133,16 @@ class ConvAutoEncoderV2(nn.Module):
         )
 
         self._decoder_layer_3 = nn.Sequential(
-            nn.ConvTranspose2d(16, 8, 3, stride=2, padding=1, output_padding=1),  # (8, 16, 16)
-            nn.BatchNorm2d(8),
-            nn.ReLU(True)
-        )
-
-        self._decoder_layer_4 = nn.Sequential(
-            nn.ConvTranspose2d(8, 3, 3, stride=2, padding=1, output_padding=1),  # (3, 32, 32)
+            nn.ConvTranspose2d(16, 3, 3, stride=2, padding=1, output_padding=1),  # (3, 16, 16)
             nn.BatchNorm2d(3),
             nn.ReLU(True)
         )
+
+        # self._decoder_layer_4 = nn.Sequential(
+        #     nn.ConvTranspose2d(8, 3, 3, padding=1, output_padding=1),  # (3, 32, 32)
+        #     nn.BatchNorm2d(3),
+        #     nn.ReLU(True)
+        # )
 
     def forward(self, x: Tensor) -> Tensor:
         out1 = self._encoder_layer_1(x)
@@ -154,8 +155,8 @@ class ConvAutoEncoderV2(nn.Module):
         decoder_out_2 = self._decoder_layer_2(decoder_out_1)
         decoder_out_2 = decoder_out_2 + out1
 
-        decoder_out_3 = self._decoder_layer_3(decoder_out_2)
-        decoder_out = self._decoder_layer_4(decoder_out_3)
+        decoder_out = self._decoder_layer_3(decoder_out_2)
+        # decoder_out = self._decoder_layer_4(decoder_out_3)
 
         return decoder_out
 
