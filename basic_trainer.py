@@ -109,7 +109,7 @@ def train(
         up_sampler: nn.Module = None,
 ):
     if up_sampler:
-        up_sampler.eval()
+        up_sampler.train()
 
     net.train()
 
@@ -248,8 +248,14 @@ def train_model(
     )
 
     criterion = nn.CrossEntropyLoss()
+    params_to_optimize = [
+        {'params': net.parameters()}
+    ]
+    if up_sampler:
+        params_to_optimize.append({'params': up_sampler.parameters()})
+
     optimizer = optim.Adam(
-        net.parameters(), lr=args.lr, weight_decay=1e-4, eps=0.1
+        params_to_optimize, lr=args.lr, weight_decay=1e-4, eps=0.1
     )
     # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
     scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
