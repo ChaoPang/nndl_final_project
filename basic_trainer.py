@@ -14,6 +14,7 @@ from data_processing.dataset import ProjectDataSet, CifarValidationDataset, get_
 from models.finetune_pretrained import *
 
 from utils.utils import progress_bar
+from utils.compute_mean_std import calculate_stats
 
 import matplotlib.pyplot as plt
 
@@ -117,7 +118,14 @@ def train(
     total = 0
 
     # Get normalize transform
-    data_normalize_transform = get_data_normalize()
+    if up_sampler:
+        train_mean, train_std = calculate_stats(train_loader)
+        data_normalize_transform = transforms.Normalize(
+            mean=train_mean,
+            std=train_std
+        )
+    else:
+        data_normalize_transform = get_data_normalize()
 
     for batch_idx, (inputs, targets) in enumerate(train_loader):
         inputs, targets = inputs.to(device), targets.to(device)
@@ -180,14 +188,22 @@ def predict(
         net,
         test_set,
         device,
-        is_label_available: bool = False
+        is_label_available: bool = False,
+        up_sampler: nn.Module = None
 ):
     data_loader = DataLoader(
         test_set, batch_size=128, num_workers=4
     )
 
     # Get normalize transform
-    data_normalize_transform = get_data_normalize()
+    if up_sampler:
+        train_mean, train_std = calculate_stats(data_loader)
+        data_normalize_transform = transforms.Normalize(
+            mean=train_mean,
+            std=train_std
+        )
+    else:
+        data_normalize_transform = get_data_normalize()
 
     net.eval()
     predictions = []
