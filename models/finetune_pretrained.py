@@ -108,6 +108,23 @@ class FinetuneResnet152(nn.Sequential):
         )
 
 
+def create_head_classifier(
+        num_classes,
+        dropout_rate
+):
+    return [
+        nn.Linear(FinetuneRegNetFeatureExtractor.output_num_features, 128),
+        nn.ReLU(),
+        nn.Dropout(dropout_rate),
+        nn.Linear(128, 64),
+        nn.ReLU(),
+        nn.Dropout(dropout_rate),
+        nn.Linear(
+            64,
+            num_classes
+        )]
+
+
 class FinetuneRegNetFeatureExtractor(PretrainedFeatureExtractor):
     def __init__(
             self,
@@ -158,23 +175,18 @@ class FinetuneRegNet(nn.Sequential):
                 deep_feature=deep_feature,
                 freeze_weight=freeze_weight
             ),
-            nn.Linear(FinetuneResnet152FeatureExtractor.output_num_features, 128),
-            nn.ReLU(),
-            nn.Dropout(dropout_rate),
-            nn.Linear(128, 64),
-            nn.ReLU(),
-            nn.Dropout(dropout_rate),
-            nn.Linear(
-                64,
-                num_classes
-            )
+            *create_head_classifier(num_classes, dropout_rate)
         )
 
 
-class FinetuneEfficientNetB7FeatureExtractor(PretrainedFeatureExtractor):
+class FinetuneEfficientNetV2FeatureExtractor(PretrainedFeatureExtractor):
 
-    def __init__(self, freeze_weight=False, deep_feature=False):
-        super(FinetuneEfficientNetB7FeatureExtractor, self).__init__(
+    def __init__(
+            self,
+            freeze_weight=False,
+            deep_feature=False
+    ):
+        super(FinetuneEfficientNetV2FeatureExtractor, self).__init__(
             deep_feature=deep_feature,
             freeze_weight=freeze_weight
         )
@@ -185,43 +197,61 @@ class FinetuneEfficientNetB7FeatureExtractor(PretrainedFeatureExtractor):
             node_name = 'features.4.9.block.3'
         else:
             node_name = 'features.3.6.block.1'
-        model = models.efficientnet_v2_l(
+
+        return create_feature_extractor(
+            self._get_pretrained_model(),
+            return_nodes={node_name: self._get_feature_name()}
+        )
+
+    def _get_feature_name(self) -> str:
+        return 'eff_net_v2'
+
+    def _get_num_features(self) -> nn.Module:
+        return list(self._feature_extractor.modules())[-1].num_features
+
+    def _get_pretrained_model(self) -> nn.Module:
+        return models.efficientnet_v2_l(
             weights=models.efficientnet.EfficientNet_V2_L_Weights
         )
-        return create_feature_extractor(
-            model,
-            return_nodes={node_name: self._get_feature_name()}
+
+
+class FinetuneEfficientNetB7FeatureExtractor(FinetuneEfficientNetV2FeatureExtractor):
+
+    def __init__(
+            self,
+            freeze_weight=False,
+            deep_feature=False
+    ):
+        super(FinetuneEfficientNetV2FeatureExtractor, self).__init__(
+            deep_feature=deep_feature,
+            freeze_weight=freeze_weight
         )
 
     def _get_feature_name(self) -> str:
         return 'eff_net_b7'
 
+    def _get_pretrained_model(self) -> nn.Module:
+        return models.efficientnet_b7(
+            weights=models.efficientnet.EfficientNet_B7_Weights
+        )
+
     def _get_num_features(self) -> nn.Module:
-        return list(self._feature_extractor.modules())[-1].num_features
+        return list(self._feature_extractor.modules())[-2].num_features
 
 
-class FinetuneEfficientNetB7(nn.Sequential):
+class FinetuneEfficientNetV2(nn.Sequential):
 
     def __init__(self, num_classes, dropout_rate=0.5, freeze_weight=False, deep_feature=False):
         super().__init__(
-            FinetuneEfficientNetB7FeatureExtractor(
+            FinetuneEfficientNetV2FeatureExtractor(
                 deep_feature=deep_feature,
                 freeze_weight=freeze_weight
             ),
-            nn.Linear(FinetuneEfficientNetB7FeatureExtractor.output_num_features, 128),
-            nn.ReLU(),
-            nn.Dropout(dropout_rate),
-            nn.Linear(128, 64),
-            nn.ReLU(),
-            nn.Dropout(dropout_rate),
-            nn.Linear(
-                64,
-                num_classes
-            )
+            *create_head_classifier(num_classes, dropout_rate)
         )
 
 
-class FinetuneEnsembleModel(nn.Module):
+class FinetuneEnsembleModelAbstract(nn.Module):
     def __init__(
             self,
             num_classes,
@@ -230,21 +260,12 @@ class FinetuneEnsembleModel(nn.Module):
             freeze_weight=False,
             deep_feature=False
     ):
-        super(FinetuneEnsembleModel, self).__init__()
-        self._feature_extractors = [
-            FinetuneEfficientNetB7FeatureExtractor(
-                img_size=deep_feature,
-                freeze_weight=freeze_weight
-            ).to(device),
-            # FinetuneResnet152FeatureExtractor(
-            #     deep_feature=deep_feature,
-            #     freeze_weight=freeze_weight
-            # ).to(device),
-            FinetuneRegNetFeatureExtractor(
-                deep_feature=deep_feature,
-                freeze_weight=freeze_weight
-            ).to(device)
-        ]
+        super(FinetuneEnsembleModelAbstract, self).__init__()
+        self._feature_extractors = self._get_feature_extractors(
+            device,
+            freeze_weight,
+            deep_feature
+        )
 
         num_of_features = PretrainedFeatureExtractor.output_num_features * len(
             self._feature_extractors)
@@ -259,6 +280,10 @@ class FinetuneEnsembleModel(nn.Module):
             nn.Linear(128, num_classes),
         )
 
+    @abstractmethod
+    def _get_feature_extractors(self, device, freeze_weight, deep_feature):
+        pass
+
     def forward(self, x: Tensor) -> Tensor:
         ensemble_features = []
         for feature_extractor in self._feature_extractors:
@@ -266,3 +291,31 @@ class FinetuneEnsembleModel(nn.Module):
         ensemble_features = torch.concat(ensemble_features, dim=-1)
         out = self._classifier(ensemble_features)
         return out
+
+
+class FinetuneEnsembleModel(FinetuneEnsembleModelAbstract):
+    def _get_feature_extractors(self, device, freeze_weight, deep_feature):
+        return [
+            FinetuneEfficientNetV2FeatureExtractor(
+                deep_feature=deep_feature,
+                freeze_weight=freeze_weight
+            ).to(device),
+            FinetuneRegNetFeatureExtractor(
+                deep_feature=deep_feature,
+                freeze_weight=freeze_weight
+            ).to(device)
+        ]
+
+
+class FinetuneEfficientNetEnsembleModel(FinetuneEnsembleModelAbstract):
+    def _get_feature_extractors(self, device, freeze_weight, deep_feature):
+        return [
+            FinetuneEfficientNetV2FeatureExtractor(
+                deep_feature=deep_feature,
+                freeze_weight=freeze_weight
+            ).to(device),
+            FinetuneEfficientNetB7FeatureExtractor(
+                deep_feature=deep_feature,
+                freeze_weight=freeze_weight
+            ).to(device)
+        ]

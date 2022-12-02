@@ -273,15 +273,15 @@ def main(args):
         up_sampler = None
 
     # net = FinetuneResnet152(num_classes=3, deep_feature=args.deep_feature)
-    net = FinetuneRegNet(num_classes=3, deep_feature=args.deep_feature)
-    # net = FinetuneEfficientNetB7(num_classes=3, deep_feature=args.deep_feature)
-    # net = FinetuneEnsembleModel(
-    #     num_classes=3,
-    #     dropout_rate=args.dropout_rate,
-    #     freeze_weight=args.freeze_weight,
-    #     device=device,
-    #     deep_feature=args.deep_feature
-    # )
+    # net = FinetuneRegNet(num_classes=3, deep_feature=args.deep_feature)
+    # net = FinetuneEfficientNetV2(num_classes=3, deep_feature=args.deep_feature)
+    net = FinetuneEfficientNetEnsembleModel(
+        num_classes=3,
+        dropout_rate=args.dropout_rate,
+        freeze_weight=args.freeze_weight,
+        device=device,
+        deep_feature=args.deep_feature
+    )
     net = net.to(device)
 
     history = train_model(net, train_set, val_set, args, device, up_sampler)
