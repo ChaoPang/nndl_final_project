@@ -232,14 +232,14 @@ class FinetuneEnsembleModel(nn.Module):
     ):
         super(FinetuneEnsembleModel, self).__init__()
         self._feature_extractors = [
-            # FinetuneEfficientNetB7FeatureExtractor(
-            #     img_size=img_size,
-            #     freeze_weight=freeze_weight
-            # ).to(device),
-            FinetuneResnet152FeatureExtractor(
-                deep_feature=deep_feature,
+            FinetuneEfficientNetB7FeatureExtractor(
+                img_size=deep_feature,
                 freeze_weight=freeze_weight
             ).to(device),
+            # FinetuneResnet152FeatureExtractor(
+            #     deep_feature=deep_feature,
+            #     freeze_weight=freeze_weight
+            # ).to(device),
             FinetuneRegNetFeatureExtractor(
                 deep_feature=deep_feature,
                 freeze_weight=freeze_weight
