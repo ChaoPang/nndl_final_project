@@ -127,7 +127,7 @@ class FinetuneRegNetFeatureExtractor(PretrainedFeatureExtractor):
         else:
             node_name = 'trunk_output.block2'
 
-        model = models.regnet_y_32gf(pretrained=True)
+        model = models.regnet_y_128gf(weights='DEFAULT')
         return create_feature_extractor(
             model,
             return_nodes={node_name: self._get_feature_name()}
@@ -182,10 +182,12 @@ class FinetuneEfficientNetB7FeatureExtractor(PretrainedFeatureExtractor):
     def _get_feature_extractor(self) -> nn.Module:
         # Extract deep features if the image size is bigger
         if self._deep_feature:
-            node_name = 'features.4'
+            node_name = 'features.4.9.block.3'
         else:
-            node_name = 'features.3'
-        model = models.efficientnet_b7(pretrained=True)
+            node_name = 'features.3.6.block.1'
+        model = models.efficientnet_v2_l(
+            weights=models.efficientnet.EfficientNet_V2_L_Weights
+        )
         return create_feature_extractor(
             model,
             return_nodes={node_name: self._get_feature_name()}

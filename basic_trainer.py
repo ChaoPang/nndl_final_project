@@ -7,7 +7,7 @@ import pandas as pd
 import torch.nn.functional
 
 import torch.optim as optim
-import torchvision.transforms
+from torchvision import transforms
 from torch.utils.data import DataLoader
 
 from data_processing.dataset import ProjectDataSet, CifarValidationDataset
@@ -27,6 +27,11 @@ IDX_TO_SUPERCLASS_DICT = {
 }
 
 sys.setrecursionlimit(10000)
+
+pretrained_normalize = transforms.Normalize(
+    mean=[0.485, 0.456, 0.406],
+    std=[0.229, 0.224, 0.225]
+)
 
 
 def map_idx_to_superclass(
@@ -99,13 +104,10 @@ def train(
         criterion,
         optimizer,
         device,
-        data_stats,
         up_sampler: nn.Module = None,
 ):
     if up_sampler:
         up_sampler.eval()
-
-    data_normalizer = torchvision.transforms.Normalize(*data_stats)
 
     net.train()
 
@@ -119,7 +121,7 @@ def train(
         if up_sampler:
             inputs = up_sampler(inputs)
 
-        inputs = data_normalizer(inputs)
+        inputs = pretrained_normalize(inputs)
 
         optimizer.zero_grad()
         outputs = net(inputs)
@@ -145,13 +147,10 @@ def validate(
         val_loader,
         criterion,
         device,
-        data_stats,
         up_sampler: nn.Module = None
 ):
     if up_sampler:
         up_sampler.eval()
-
-    data_normalizer = torchvision.transforms.Normalize(*data_stats)
 
     net.eval()
     val_loss = 0
@@ -163,7 +162,7 @@ def validate(
             if up_sampler:
                 inputs = up_sampler(inputs)
 
-            inputs = data_normalizer(inputs)
+            inputs = pretrained_normalize(inputs)
 
             outputs = net(inputs)
             loss = criterion(outputs, targets)
@@ -191,10 +190,6 @@ def predict(
         test_set, batch_size=128, num_workers=4
     )
 
-    print('Calculating Test set stats')
-    data_stats = calculate_stats(data_loader)
-    data_normalizer = torchvision.transforms.Normalize(*data_stats)
-
     net.eval()
     predictions = []
     labels = []
@@ -202,7 +197,7 @@ def predict(
     total = 0
     with torch.no_grad():
         for batch_idx, (inputs, targets) in enumerate(data_loader):
-            inputs = data_normalizer(inputs)
+            inputs = pretrained_normalize(inputs)
             outputs = net(inputs.to(device))
             predicted = torch.argmax(outputs, dim=-1)
             predictions.append(predicted.detach().cpu().numpy())
@@ -280,15 +275,15 @@ def main(args):
 
     # net = ResNet101(num_classes=3, img_size=img_size)
     # net = FinetuneResnet152(num_classes=3, img_size=img_size)
-    # net = FinetuneRegNet(num_classes=3, img_size=img_size)
+    net = FinetuneRegNet(num_classes=3, deep_feature=args.deep_feature)
     # net = FinetuneEfficientNetB7(num_classes=3, img_size=img_size)
-    net = FinetuneEnsembleModel(
-        num_classes=3,
-        dropout_rate=args.dropout_rate,
-        freeze_weight=args.freeze_weight,
-        device=device,
-        deep_feature=args.deep_feature
-    )
+    # net = FinetuneEnsembleModel(
+    #     num_classes=3,
+    #     dropout_rate=args.dropout_rate,
+    #     freeze_weight=args.freeze_weight,
+    #     device=device,
+    #     deep_feature=args.deep_feature
+    # )
     net = net.to(device)
 
     history = train_model(net, train_set, val_set, args, device, up_sampler)
@@ -400,12 +395,6 @@ def training_loop(
     early_stopping_counter = 0
     best_val_loss = 1e6
 
-    print('Calculating Train set stats')
-    train_stats = calculate_stats(train_dataloader)
-
-    print('Calculating Val set stats')
-    val_stats = calculate_stats(val_dataloader)
-
     history = {}
 
     for epoch in range(0, epochs):
@@ -416,7 +405,6 @@ def training_loop(
             criterion,
             optimizer,
             device,
-            train_stats,
             up_sampler
         )
         val_loss, val_acc = validate(
@@ -424,7 +412,6 @@ def training_loop(
             val_dataloader,
             criterion,
             device,
-            val_stats,
             up_sampler
         )
         scheduler.step()

@@ -31,29 +31,17 @@ def get_all_filenames(
 def get_cifar100_transformers(img_size):
     transform = torchvision.transforms.Compose([
         torchvision.transforms.Resize(img_size),
-        torchvision.transforms.ToTensor(),
-        # torchvision.transforms.Normalize(*((0.5074, 0.4867, 0.4411), (0.2011, 0.1987, 0.2025)))
+        torchvision.transforms.ToTensor()
     ])
     return transform
-
-
-def get_cifar100_normalizer():
-    return torchvision.transforms.Normalize(*((0.5074, 0.4867, 0.4411), (0.2011, 0.1987, 0.2025)))
 
 
 def get_cifar10_transformers(img_size):
     transform = torchvision.transforms.Compose([
         torchvision.transforms.Resize(img_size),
         torchvision.transforms.ToTensor(),
-        # torchvision.transforms.Normalize(
-        #     *((0.49139968, 0.48215827, 0.44653124),
-        #       (0.24703233, 0.24348505, 0.26158768)))
     ])
     return transform
-
-
-def get_project_data_normalizer():
-    return transforms.Normalize((0.4707, 0.4431, 0.3708), (0.1577, 0.1587, 0.1783))
 
 
 class ProjectDataSet(Dataset):
@@ -65,7 +53,6 @@ class ProjectDataSet(Dataset):
             is_superclass=True,
             img_size=8,
             normalize=True
-            # up_sampler: nn.Module = None
     ):
         self._image_folder_path = image_folder_path
         self._data_label_path = data_label_path
@@ -75,11 +62,6 @@ class ProjectDataSet(Dataset):
         self._is_training = data_label_path is not None
         self._img_size = img_size
         self._normalize = normalize
-        # self._up_sampler = up_sampler
-        #
-        # if self._up_sampler:
-        #     assert self._img_size == 8, 'The up sampler only supports 8 by 8 images'
-        #     self._up_sampler.eval()
 
         self._label_dict = self._get_class_label(
             data_label_path
