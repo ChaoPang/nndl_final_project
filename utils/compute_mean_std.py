@@ -4,13 +4,16 @@ import argparse
 
 
 def calculate_stats(
-        dataloader
+        dataloader,
+        up_sampler: torch.nn.Module = None
 ):
     # Calculate mean
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     h, w = 0, 0
     for batch_idx, (inputs, targets) in enumerate(dataloader):
         inputs = inputs.to(device)
+        if up_sampler:
+            inputs = up_sampler(inputs)
         if batch_idx == 0:
             h, w = inputs.size(2), inputs.size(3)
             chsum = inputs.sum(dim=(0, 2, 3), keepdim=True)
@@ -22,6 +25,8 @@ def calculate_stats(
     chsum = None
     for batch_idx, (inputs, targets) in enumerate(dataloader):
         inputs = inputs.to(device)
+        if up_sampler:
+            inputs = up_sampler(inputs)
         if batch_idx == 0:
             chsum = (inputs - mean).pow(2).sum(dim=(0, 2, 3), keepdim=True)
         else:

@@ -106,10 +106,10 @@ def train(
         criterion,
         optimizer,
         device,
-        up_sampler: nn.Module = None,
+        up_sampler: nn.Module = None
 ):
     if up_sampler:
-        up_sampler.train()
+        up_sampler.eval()
 
     net.train()
 
@@ -119,7 +119,7 @@ def train(
 
     # Get normalize transform
     if up_sampler:
-        train_mean, train_std = calculate_stats(train_loader)
+        train_mean, train_std = calculate_stats(train_loader, up_sampler)
         data_normalize_transform = transforms.Normalize(
             mean=train_mean,
             std=train_std
@@ -158,15 +158,32 @@ def validate(
         net,
         val_loader,
         criterion,
-        device
+        device,
+        up_sampler: nn.Module = None
 ):
+    if up_sampler:
+        up_sampler.eval()
+
     net.eval()
     val_loss = 0
     correct = 0
     total = 0
+
+    if up_sampler:
+        val_mean, val_std = calculate_stats(val_loader, up_sampler)
+        data_normalize_transform = transforms.Normalize(
+            mean=val_mean,
+            std=val_std
+        )
+    else:
+        data_normalize_transform = get_data_normalize()
+
     with torch.no_grad():
         for batch_idx, (inputs, targets) in enumerate(val_loader):
             inputs, targets = inputs.to(device), targets.to(device)
+            if up_sampler:
+                inputs = up_sampler(inputs)
+            inputs = data_normalize_transform(inputs)
 
             outputs = net(inputs)
             loss = criterion(outputs, targets)
@@ -197,7 +214,7 @@ def predict(
 
     # Get normalize transform
     if up_sampler:
-        train_mean, train_std = calculate_stats(data_loader)
+        train_mean, train_std = calculate_stats(data_loader, up_sampler)
         data_normalize_transform = transforms.Normalize(
             mean=train_mean,
             std=train_std
@@ -212,6 +229,10 @@ def predict(
     total = 0
     with torch.no_grad():
         for batch_idx, (inputs, targets) in enumerate(data_loader):
+
+            if up_sampler:
+                inputs = up_sampler(inputs)
+
             inputs = data_normalize_transform(inputs)
             outputs = net(inputs.to(device))
             predicted = torch.argmax(outputs, dim=-1)
@@ -248,14 +269,8 @@ def train_model(
     )
 
     criterion = nn.CrossEntropyLoss()
-    params_to_optimize = [
-        {'params': net.parameters()}
-    ]
-    if up_sampler:
-        params_to_optimize.append({'params': up_sampler.parameters()})
-
     optimizer = optim.Adam(
-        params_to_optimize, lr=args.lr, weight_decay=1e-4, eps=0.1
+        net.parameters(), lr=args.lr, weight_decay=1e-4, eps=0.1
     )
     # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
     scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
@@ -427,11 +442,13 @@ def training_loop(
             device,
             up_sampler
         )
+
         val_loss, val_acc = validate(
             net,
             val_dataloader,
             criterion,
-            device
+            device,
+            up_sampler
         )
         scheduler.step()
 
