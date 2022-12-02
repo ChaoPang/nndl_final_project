@@ -70,13 +70,15 @@ class ProjectDataSet(Dataset):
                 transforms.RandomCrop(self._img_size, padding=self._img_size // 4),
                 transforms.RandomHorizontalFlip(),
                 transforms.ToTensor(),
-                transforms.Normalize((0.4707, 0.4431, 0.3708), (0.1577, 0.1587, 0.1783)),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                     std=[0.229, 0.224, 0.225])
             ])
 
         return transforms.Compose([
             transforms.Resize(self._img_size),
             transforms.ToTensor(),
-            transforms.Normalize((0.4707, 0.4431, 0.3708), (0.1577, 0.1587, 0.1783)),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                 std=[0.229, 0.224, 0.225])
         ])
 
     def __getitem__(self, idx):
@@ -111,9 +113,8 @@ class CifarValidationDataset(Dataset):
         transform = torchvision.transforms.Compose([
             torchvision.transforms.Resize(self._img_size),
             torchvision.transforms.ToTensor(),
-            torchvision.transforms.Normalize(
-                *((0.49139968, 0.48215827, 0.44653124),
-                  (0.24703233, 0.24348505, 0.26158768)))
+            torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                             std=[0.229, 0.224, 0.225])
         ])
         # Download the CIFAR10 Data
         cifar10_train = torchvision.datasets.CIFAR10(
@@ -154,7 +155,8 @@ class CifarValidationDataset(Dataset):
         transform = torchvision.transforms.Compose([
             torchvision.transforms.Resize(self._img_size),
             torchvision.transforms.ToTensor(),
-            torchvision.transforms.Normalize(*((0.5074, 0.4867, 0.4411), (0.2011, 0.1987, 0.2025)))
+            torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                             std=[0.229, 0.224, 0.225])
         ])
         # Download the CIFAR100 Data
         cifar100_train = CIFAR100Coarse(
