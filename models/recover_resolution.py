@@ -161,6 +161,26 @@ class ConvAutoEncoderV2(nn.Module):
         return decoder_out
 
 
+class SubPixelCNN(nn.Module):
+    def __init__(self, upscale_factor=2, channels=3):
+        super(SubPixelCNN, self).__init__()
+        self._upscale_factor = upscale_factor
+        self._channels = channels
+        self._sequence = nn.Sequential(
+            nn.Conv2d(3, 64, 5, padding=2),
+            nn.ReLU(),
+            nn.Conv2d(64, 64, 3, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(64, 32, 3, padding=1),
+            nn.Conv2d(32, channels * (upscale_factor ** 2), 3, padding=1),
+        )
+
+    def forward(self, x: Tensor) -> Tensor:
+        out = self._sequence(x)
+        out = nn.functional.pixel_shuffle(out, upscale_factor=self._upscale_factor)
+        return out
+
+
 def create_recover_resolution_net(
         in_channels=3,
         img_input_size=8,

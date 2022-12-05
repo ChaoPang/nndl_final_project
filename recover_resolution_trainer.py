@@ -1,11 +1,8 @@
-import os
 import argparse
 
-import torch
-from torch import nn
 from torch.utils.data import DataLoader
 from data_processing.recover_dataset import RecoverResolutionCifarDataset
-from models.recover_resolution import ConvAutoEncoder, ConvAutoEncoderV2
+from models.recover_resolution import *
 from basic_trainer import plot_training_loss, update_metrics, checkpoint
 
 from utils.utils import progress_bar
@@ -40,7 +37,8 @@ def main(args):
     # )
 
     # net = ConvAutoEncoder()
-    net = ConvAutoEncoderV2()
+    # net = ConvAutoEncoderV2()
+    net = SubPixelCNN()
     net = net.to(device)
 
     history = train_model(net, dataset, args, device)
@@ -58,7 +56,7 @@ def train_model(
         train_set, batch_size=128, shuffle=True, num_workers=4
     )
 
-    criterion = nn.MSELoss(reduction='sum')
+    criterion = nn.MSELoss()
     # criterion = nn.BCELoss()
     optimizer = torch.optim.Adam(
         net.parameters(), lr=args.lr, weight_decay=1e-4, eps=0.001
