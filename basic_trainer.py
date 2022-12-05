@@ -324,7 +324,7 @@ def main(args):
     history = train_model(net, train_set, val_set, args, device, up_sampler)
 
     net = torch.load(os.path.join(args.checkpoint_path, MODEL_NAME))
-    predictions_pd = predict(net, test_set, device, args.test_label)
+    predictions_pd = predict(net, test_set, device, args.test_label, up_sampler)
     predictions_pd.to_csv(
         os.path.join(args.checkpoint_path, 'predictions.csv'),
         index=False
