@@ -168,11 +168,13 @@ class SubPixelCNN(nn.Module):
         self._channels = channels
         self._sequence = nn.Sequential(
             nn.Conv2d(3, 64, 5, padding=2),
-            nn.ReLU(),
+            nn.ReLU(True),
             nn.Conv2d(64, 64, 3, padding=1),
-            nn.ReLU(),
+            nn.ReLU(True),
             nn.Conv2d(64, 32, 3, padding=1),
+            nn.ReLU(True),
             nn.Conv2d(32, channels * (upscale_factor ** 2), 3, padding=1),
+            nn.ReLU(True)
         )
 
     def forward(self, x: Tensor) -> Tensor:
