@@ -231,7 +231,7 @@ def predict(
         for batch_idx, (inputs, targets) in enumerate(data_loader):
 
             if up_sampler:
-                inputs = up_sampler(inputs)
+                inputs = up_sampler(inputs.to(device))
 
             inputs = data_normalize_transform(inputs)
             outputs = net(inputs.to(device))
