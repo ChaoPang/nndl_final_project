@@ -1,6 +1,7 @@
 from abc import abstractmethod
 
 import torch
+import torchvision
 from torch import nn, Tensor
 from torchvision import models
 import torch.nn.functional as F
@@ -98,7 +99,7 @@ class FinetuneRegNetFeatureExtractor(PretrainedFeatureExtractor):
         )
 
     def _get_feature_extractor(self) -> nn.Module:
-        model = models.regnet_y_32gf(pretrained=True)
+        model = models.regnet_y_128gf(weights='DEFAULT')
         return create_feature_extractor(
             model,
             return_nodes={'trunk_output.block2': 'block2'}
@@ -142,10 +143,10 @@ class FinetuneEfficientNetB7FeatureExtractor(PretrainedFeatureExtractor):
         )
 
     def _get_feature_extractor(self) -> nn.Module:
-        model = models.efficientnet_b7(pretrained=True)
+        model = models.efficientnet_v2_l(weights=torchvision.models.efficientnet.EfficientNet_V2_L_Weights)
         return create_feature_extractor(
             model,
-            return_nodes={'features.3': 'features.3'}
+            return_nodes={'features.3.6.block.1': 'features.3'}
         )
 
     def _get_tensor_by_name(self, named_features: dict) -> Tensor:
