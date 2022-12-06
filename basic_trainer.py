@@ -42,6 +42,7 @@ def map_idx_to_superclass(
 
 def create_arg_parser():
     parser = argparse.ArgumentParser(description='PyTorch NNDL image classification challenge')
+    parser.add_argument('--batch_size', type=int, default=128, help='batch_size')
     parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
     parser.add_argument('--epochs', default=100, type=int, help='Number of epochs')
     parser.add_argument('--dropout_rate', default=0.5, type=float, help='Dropout rate')
@@ -204,12 +205,13 @@ def validate(
 def predict(
         net,
         test_set,
+        batch_size,
         device,
         is_label_available: bool = False,
         up_sampler: nn.Module = None
 ):
     data_loader = DataLoader(
-        test_set, batch_size=128, num_workers=4
+        test_set, batch_size=batch_size, num_workers=4
     )
 
     # Get normalize transform
@@ -261,11 +263,11 @@ def train_model(
         up_sampler: nn.Module = None
 ):
     train_dataloader = DataLoader(
-        train_set, batch_size=128, shuffle=True, num_workers=4
+        train_set, batch_size=args.batch_size, shuffle=True, num_workers=4
     )
 
     val_dataloader = DataLoader(
-        val_set, batch_size=128, shuffle=True, num_workers=4
+        val_set, batch_size=args.batch_size, shuffle=True, num_workers=4
     )
 
     criterion = nn.CrossEntropyLoss()
@@ -324,7 +326,14 @@ def main(args):
     history = train_model(net, train_set, val_set, args, device, up_sampler)
 
     net = torch.load(os.path.join(args.checkpoint_path, MODEL_NAME))
-    predictions_pd = predict(net, test_set, device, args.test_label, up_sampler)
+    predictions_pd = predict(
+        net,
+        test_set,
+        args.batch_size,
+        device,
+        args.test_label,
+        up_sampler
+    )
     predictions_pd.to_csv(
         os.path.join(args.checkpoint_path, 'predictions.csv'),
         index=False

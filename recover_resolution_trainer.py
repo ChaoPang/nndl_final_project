@@ -37,8 +37,8 @@ def main(args):
     # )
 
     # net = ConvAutoEncoder()
-    # net = ConvAutoEncoderV2()
-    net = SubPixelCNN()
+    net = ConvAutoEncoderV2()
+    # net = SubPixelCNN()
     net = net.to(device)
 
     history = train_model(net, dataset, args, device)
