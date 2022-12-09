@@ -12,6 +12,7 @@ from torch.utils.data import DataLoader
 
 from data_processing.dataset import ProjectDataSet, CifarValidationDataset, get_data_normalize
 from models.finetune_pretrained import *
+from models.vision_transformer import VisionTransformer
 
 from utils.utils import progress_bar
 from utils.compute_mean_std import calculate_stats
@@ -314,13 +315,14 @@ def main(args):
     # net = FinetuneResnet152(num_classes=3, deep_feature=args.deep_feature)
     # net = FinetuneRegNet(num_classes=3, deep_feature=args.deep_feature)
     # net = FinetuneEfficientNetV2(num_classes=3, deep_feature=args.deep_feature)
-    net = FinetuneEfficientNetEnsembleModel(
-        num_classes=3,
-        dropout_rate=args.dropout_rate,
-        freeze_weight=args.freeze_weight,
-        device=device,
-        deep_feature=args.deep_feature
-    )
+    net = VisionTransformer(img_size=args.img_size)
+    # net = FinetuneEfficientNetEnsembleModel(
+    #     num_classes=3,
+    #     dropout_rate=args.dropout_rate,
+    #     freeze_weight=args.freeze_weight,
+    #     device=device,
+    #     deep_feature=args.deep_feature
+    # )
     net = net.to(device)
 
     history = train_model(net, train_set, val_set, args, device, up_sampler)
