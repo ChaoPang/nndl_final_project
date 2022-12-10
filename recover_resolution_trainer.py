@@ -1,7 +1,7 @@
 import argparse
 
 from torch.utils.data import DataLoader
-from data_processing.recover_dataset import RecoverResolutionCifarDataset
+from data_processing.recover_dataset import RecoverResolutionDataset
 from models.recover_resolution import *
 from basic_trainer import plot_training_loss, update_metrics, checkpoint
 
@@ -14,7 +14,7 @@ def create_arg_parser():
     parser.add_argument('--epochs', default=100, type=int, help='Number of epochs')
     parser.add_argument('--img_input_size', default=8, type=int, help='Image Size')
     parser.add_argument('--img_output_size', default=32, type=int, help='Image Size')
-    parser.add_argument('--cifar_data_path', required=True,
+    parser.add_argument('--data_path', required=True,
                         help='input_folder containing the CIFAR images')
     parser.add_argument('--checkpoint_path', required=True, help='checkpoint_path for the model')
     return parser
@@ -22,10 +22,10 @@ def create_arg_parser():
 
 def main(args):
     # Data
-    dataset = RecoverResolutionCifarDataset(
+    dataset = RecoverResolutionDataset(
         args.img_input_size,
         args.img_output_size,
-        args.cifar_data_path
+        args.data_path
     )
 
     # Initialize the model

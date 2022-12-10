@@ -314,8 +314,8 @@ def main(args):
 
     # net = FinetuneResnet152(num_classes=3, deep_feature=args.deep_feature)
     # net = FinetuneRegNet(num_classes=3, deep_feature=args.deep_feature)
-    # net = FinetuneEfficientNetV2(num_classes=3, deep_feature=args.deep_feature)
-    net = VisionTransformer(img_size=args.img_size)
+    net = FinetuneEfficientNetV2(num_classes=3, deep_feature=args.deep_feature)
+    # net = VisionTransformer(img_size=args.img_size)
     # net = FinetuneEfficientNetEnsembleModel(
     #     num_classes=3,
     #     dropout_rate=args.dropout_rate,
