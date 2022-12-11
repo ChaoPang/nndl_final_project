@@ -97,7 +97,7 @@ def train(
             reconstruction_outputs,
             high_resolution_targets
         )
-        loss = cls_loss + reconstruction_loss
+        loss = 0.2 * cls_loss + 0.8 * reconstruction_loss
         loss.backward()
         optimizer.step()
 
@@ -138,7 +138,7 @@ def validate(
                 high_resolution_targets
             )
 
-            val_loss += cls_loss.item() + reconstruction_loss.item()
+            val_loss += 0.2 * cls_loss.item() + 0.8 * reconstruction_loss.item()
             _, predicted = outputs.max(1)
             total += targets.size(0)
             correct += predicted.eq(targets).sum().item()
