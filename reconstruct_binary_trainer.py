@@ -1,14 +1,11 @@
 import sys
 import os
 import pickle
-import math
 import argparse
-import pandas as pd
 import torch.nn.functional
 
 from torch import nn
 import torch.optim as optim
-from torchvision import transforms
 from torch.utils.data import DataLoader
 
 from data_processing.recover_dataset import RecoverPredictionDataset
@@ -87,7 +84,7 @@ def train(
 
     for batch_idx, (inputs, targets, high_resolution_targets) in enumerate(train_loader):
         inputs, targets, high_resolution_targets = inputs.to(device), targets.to(
-            device), high_resolution_targets.to(high_resolution_targets)
+            device), high_resolution_targets.to(device)
 
         optimizer.zero_grad()
         outputs, reconstruction_outputs = net(inputs)
@@ -239,7 +236,7 @@ def create_datasets(
     )
 
     train_total = len(train_set)
-    train_size = int(train_total * 0.8)
+    train_size = int(train_total * 0.9)
     val_size = train_total - train_size
     train_set, val_set = torch.utils.data.random_split(
         train_set, [train_size, val_size]
