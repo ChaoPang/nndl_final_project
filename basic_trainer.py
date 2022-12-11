@@ -309,6 +309,8 @@ def main(args):
             args.up_sampler_path,
             map_location=device
         )
+        if hasattr(up_sampler, '_reconstruction_model'):
+            up_sampler = getattr(up_sampler, '_reconstruction_model')
     else:
         up_sampler = None
 
