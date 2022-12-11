@@ -22,6 +22,7 @@ sys.setrecursionlimit(10000)
 
 def create_arg_parser():
     parser = argparse.ArgumentParser(description='PyTorch NNDL image classification challenge')
+    parser.add_argument('--num_classes', type=int, default=3, help='num_classes')
     parser.add_argument('--batch_size', type=int, default=128, help='batch_size')
     parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
     parser.add_argument('--epochs', default=100, type=int, help='Number of epochs')
@@ -106,8 +107,9 @@ def train(
         total += targets.size(0)
         correct += predicted.eq(targets).sum().item()
 
-        progress_bar(batch_idx, len(train_loader), 'Cls Loss: %.3f | Acc: %.3f%% (%d/%d)'
-                     % (train_loss / (batch_idx + 1), 100. * correct / total, correct, total))
+        progress_bar(batch_idx, len(train_loader),
+                     'Cls Loss: %.3f | Reconstruction Loss: %.3f | Acc: %.3f%% (%d/%d)'
+                     % (cls_loss, reconstruction_loss, 100. * correct / total, correct, total))
 
     acc = 100. * correct / total
     train_average_loss = train_loss / total
@@ -143,8 +145,9 @@ def validate(
             total += targets.size(0)
             correct += predicted.eq(targets).sum().item()
 
-            progress_bar(batch_idx, len(val_loader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
-                         % (val_loss / (batch_idx + 1), 100. * correct / total, correct, total))
+            progress_bar(batch_idx, len(val_loader),
+                         'Cls Loss: %.3f | Reconstruction Loss: %.3f | Acc: %.3f%% (%d/%d)'
+                         % (cls_loss, reconstruction_loss, 100. * correct / total, correct, total))
 
     acc = 100. * correct / total
     val_average_loss = val_loss / total
@@ -204,9 +207,11 @@ def main(args):
     print(f'Upscale factor is {upscale_factor}\n')
 
     net = ReconstructClassificationModel(
-        num_classes=257,
+        num_classes=args.num_classes,
         deep_feature=args.deep_feature,
-        upscale_factor=upscale_factor
+        freeze_weight=args.freeze_weight,
+        upscale_factor=upscale_factor,
+        dropout_rate=args.dropout_rate
     )
     net = net.to(device)
 
