@@ -98,7 +98,12 @@ def train(
             reconstruction_outputs,
             high_resolution_targets
         )
-        loss = 0.2 * cls_loss + 0.8 * reconstruction_loss
+
+        if batch_idx % 5 == 0:
+            loss = cls_loss
+        else:
+            loss = reconstruction_loss
+
         loss.backward()
         optimizer.step()
 
@@ -141,7 +146,11 @@ def validate(
                 high_resolution_targets
             )
 
-            val_loss += 0.2 * cls_loss.item() + 0.8 * reconstruction_loss.item()
+            if batch_idx % 5 == 0:
+                val_loss = cls_loss.item()
+            else:
+                val_loss = reconstruction_loss.item()
+
             _, predicted = outputs.max(1)
             total += targets.size(0)
             correct += predicted.eq(targets).sum().item()
