@@ -24,8 +24,8 @@ class RecoverResolutionDataset(Dataset):
         self._cifar_dataset = torch.utils.data.ConcatDataset([
             # self._get_cifar10_dataset(),
             # self._get_cifar100_dataset(),
-            self._get_imagenet_dataset(),
-            self._get_caltech101_dataset(),
+            # self._get_imagenet_dataset(),
+            # self._get_caltech101_dataset(),
             self._get_caltech256_dataset()
         ])
         self._resize_input_transformers = torchvision.transforms.Compose([
@@ -107,6 +107,12 @@ class RecoverResolutionDataset(Dataset):
 
     def __len__(self):
         return len(self._cifar_dataset)
+
+
+class RecoverPredictionDataset(RecoverResolutionDataset):
+    def __getitem__(self, index):
+        img, label = self._cifar_dataset[index]
+        return self._resize_input_transformers(img), label, self._resize_output_transformers(img)
 
 
 # Credits goes to https://github.com/ryanchankh/cifar100coarse

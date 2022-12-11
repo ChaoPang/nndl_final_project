@@ -6,6 +6,8 @@ from torchvision import models
 import torch.nn.functional as F
 from torchvision.models.feature_extraction import create_feature_extractor
 
+from models.recover_resolution import SubPixelCNN
+
 
 class PretrainedFeatureExtractor(nn.Module):
     output_num_features = 256
@@ -30,7 +32,7 @@ class PretrainedFeatureExtractor(nn.Module):
         named_features = self._feature_extractor(x)
         # Extract the tensor
         features = self._get_tensor_by_name(named_features)
-        features = F.avg_pool2d(features, features.shape[-1])
+        features = F.max_pool2d(features, features.shape[-1])
         features = features.view(features.size(0), -1)
         out = self._linear_layer(features)
         return out
@@ -319,3 +321,39 @@ class FinetuneEfficientNetEnsembleModel(FinetuneEnsembleModelAbstract):
                 freeze_weight=freeze_weight
             ).to(device)
         ]
+
+
+class ReconstructClassificationModel(nn.Module):
+    def __init__(
+            self,
+            num_classes,
+            dropout_rate=0.5,
+            freeze_weight=False,
+            deep_feature=False,
+            upscale_factor=2,
+            channels=3
+    ):
+        super(ReconstructClassificationModel, self).__init__()
+
+        self._reconstruction_model = SubPixelCNN(
+            upscale_factor=upscale_factor,
+            channels=channels
+        )
+
+        self._classification_model = FinetuneEfficientNetV2(
+            num_classes,
+            dropout_rate,
+            freeze_weight,
+            deep_feature
+        )
+
+    def forward(self, x: Tensor) -> Tensor:
+        reconstruct_out = self._reconstruction_model(
+            x
+        )
+
+        cls_out = self._classification_model(
+            reconstruct_out
+        )
+
+        return cls_out, reconstruct_out
