@@ -135,7 +135,7 @@ def train(
         if up_sampler:
             inputs = up_sampler(inputs)
 
-        inputs = data_normalize_transform(inputs)
+        # inputs = data_normalize_transform(inputs)
 
         optimizer.zero_grad()
         outputs = net(inputs)
@@ -185,7 +185,7 @@ def validate(
             inputs, targets = inputs.to(device), targets.to(device)
             if up_sampler:
                 inputs = up_sampler(inputs)
-            inputs = data_normalize_transform(inputs)
+            # inputs = data_normalize_transform(inputs)
 
             outputs = net(inputs)
             loss = criterion(outputs, targets)
@@ -236,7 +236,7 @@ def predict(
             if up_sampler:
                 inputs = up_sampler(inputs.to(device))
 
-            inputs = data_normalize_transform(inputs)
+            # inputs = data_normalize_transform(inputs)
             outputs = net(inputs.to(device))
             predicted = torch.argmax(outputs, dim=-1)
             predictions.append(predicted.detach().cpu().numpy())
