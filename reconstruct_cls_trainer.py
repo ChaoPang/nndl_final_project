@@ -108,8 +108,9 @@ def train(
         correct += predicted.eq(targets).sum().item()
 
         progress_bar(batch_idx, len(train_loader),
-                     'Cls Loss: %.3f | Reconstruction Loss: %.3f | Acc: %.3f%% (%d/%d)'
-                     % (cls_loss, reconstruction_loss, 100. * correct / total, correct, total))
+                     'Loss: %.3f | Cls Loss: %.3f | Reconstruction Loss: %.3f | Acc: %.3f%% (%d/%d)'
+                     % (train_loss / (batch_idx + 1), cls_loss, reconstruction_loss,
+                        100. * correct / total, correct, total))
 
     acc = 100. * correct / total
     train_average_loss = train_loss / total
@@ -146,8 +147,9 @@ def validate(
             correct += predicted.eq(targets).sum().item()
 
             progress_bar(batch_idx, len(val_loader),
-                         'Cls Loss: %.3f | Reconstruction Loss: %.3f | Acc: %.3f%% (%d/%d)'
-                         % (cls_loss, reconstruction_loss, 100. * correct / total, correct, total))
+                         'Loss: %.3f | Cls Loss: %.3f | Reconstruction Loss: %.3f | Acc: %.3f%% (%d/%d)'
+                         % (val_loss / (batch_idx + 1), cls_loss, reconstruction_loss,
+                            100. * correct / total, correct, total))
 
     acc = 100. * correct / total
     val_average_loss = val_loss / total

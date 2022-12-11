@@ -6,7 +6,7 @@ from torchvision import models
 import torch.nn.functional as F
 from torchvision.models.feature_extraction import create_feature_extractor
 
-from models.recover_resolution import SubPixelCNN
+from models.recover_resolution import SubPixelCNN, ConvAutoEncoderV2
 
 
 class PretrainedFeatureExtractor(nn.Module):
@@ -335,10 +335,7 @@ class ReconstructClassificationModel(nn.Module):
     ):
         super(ReconstructClassificationModel, self).__init__()
 
-        self._reconstruction_model = SubPixelCNN(
-            upscale_factor=upscale_factor,
-            channels=channels
-        )
+        self._reconstruction_model = ConvAutoEncoderV2()
 
         self._classification_model = FinetuneEfficientNetV2(
             num_classes,
