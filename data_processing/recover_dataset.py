@@ -24,9 +24,9 @@ class RecoverResolutionDataset(Dataset):
         self._cifar_dataset = torch.utils.data.ConcatDataset([
             # self._get_cifar10_dataset(),
             # self._get_cifar100_dataset(),
-            self._get_imagenet_dataset(),
-            self._get_caltech101_dataset(),
-            self._get_caltech256_dataset()
+            self._get_imagenet_dataset()
+            # self._get_caltech101_dataset(),
+            # self._get_caltech256_dataset()
         ])
         self._resize_input_transformers = torchvision.transforms.Compose([
             torchvision.transforms.Resize((self._img_input_size, self._img_input_size)),
