@@ -79,8 +79,7 @@ def train_model(
             train_acc=0.0,
             val_acc=0.0
         )
-        if epoch % 10 == 0:
-            checkpoint(net, history, args.checkpoint_path, f'model-{epoch}.pt')
+        checkpoint(net, history, args.checkpoint_path, f'model-{epoch}.pt')
 
     # Save for the last time
     checkpoint(net, history, args.checkpoint_path, 'final_model.pt')
