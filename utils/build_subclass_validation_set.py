@@ -11,13 +11,14 @@ from io import BytesIO
 def download_images(
         query: str,
         output_folder: str,
+        api_key: str,
         file_name_base: int = 0
 ):
     search = GoogleSearch({
         "q": query,
         "tbm": "isch",
         'async': 'false',
-        "api_key": "50d03ab632fea45434331d4361e3843217a0630281985e3f3ea31a3af2ef15da"
+        "api_key": api_key
     })
 
     image_names = []
@@ -44,6 +45,7 @@ def create_arg_parser():
                         help='The path to the subclass mapping file')
     parser.add_argument('--output_folder', dest='output_folder', required=True,
                         help='The output_folder')
+    parser.add_argument('--api_key', required=True, help='API Key for Google search')
     return parser
 
 
@@ -66,6 +68,7 @@ def main(args):
         image_names = download_images(
             class_name,
             val_image_folder,
+            args.api_key,
             file_name_base
         )
 
