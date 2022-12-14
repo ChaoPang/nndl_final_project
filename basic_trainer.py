@@ -12,7 +12,6 @@ from torch.utils.data import DataLoader
 
 from data_processing.dataset import ProjectDataSet, CifarValidationDataset, get_data_normalize
 from models.finetune_pretrained import *
-from models.vision_transformer import VisionTransformer
 
 from utils.utils import progress_bar
 from utils.compute_mean_std import calculate_stats
@@ -43,6 +42,9 @@ def map_idx_to_superclass(
 
 def create_arg_parser():
     parser = argparse.ArgumentParser(description='PyTorch NNDL image classification challenge')
+    parser.add_argument('--is_superclass', action='store_true',
+                        help='Super class or sub class predictions')
+    parser.add_argument('--num_classes', type=int, default=3, help='num_classes')
     parser.add_argument('--batch_size', type=int, default=128, help='batch_size')
     parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
     parser.add_argument('--epochs', default=100, type=int, help='Number of epochs')
@@ -59,7 +61,9 @@ def create_arg_parser():
     parser.add_argument('--training_label_path', required=True, help='the path to training label')
     parser.add_argument('--test_data_path', required=True,
                         help='input_folder containing the images')
-    parser.add_argument('--cifar_data_path', required=True,
+    parser.add_argument('--val_data_path', required=True,
+                        help='input_folder containing the CIFAR images')
+    parser.add_argument('--val_data_label_path', required='--is_superclass' not in sys.argv,
                         help='input_folder containing the CIFAR images')
     parser.add_argument('--checkpoint_path', required=True, help='checkpoint_path for the model')
     parser.add_argument('--external_validation', action='store_true',
@@ -314,7 +318,7 @@ def main(args):
 
     # net = FinetuneResnet152(num_classes=3, deep_feature=args.deep_feature)
     # net = FinetuneRegNet(num_classes=3, deep_feature=args.deep_feature)
-    net = FinetuneEfficientNetV2(num_classes=3, deep_feature=args.deep_feature)
+    net = FinetuneEfficientNetV2(num_classes=args.num_classes, deep_feature=args.deep_feature)
     # net = VisionTransformer(img_size=args.img_size)
     # net = FinetuneEfficientNetEnsembleModel(
     #     num_classes=3,
@@ -362,7 +366,7 @@ def create_datasets(
         image_folder_path=args.training_data_path,
         data_label_path=args.training_label_path,
         is_training=True,
-        is_superclass=True,
+        is_superclass=args.is_superclass,
         img_size=args.img_size,
         normalize=False
     )
@@ -370,18 +374,28 @@ def create_datasets(
     test_set = ProjectDataSet(
         image_folder_path=args.test_data_path,
         is_training=False,
-        is_superclass=True,
+        is_superclass=args.is_superclass,
         img_size=args.img_size,
         normalize=False
     )
 
     # If the up sampler is enabled, we use the default 32 by 32 image for validation
     # Use the CIFAR data as the external validation set
-    val_set = CifarValidationDataset(
-        cifar_data_folder=args.cifar_data_path,
-        download=True,
-        img_size=args.img_upsampled_size if args.up_sampler_path else args.img_size
-    )
+    if args.is_superclass:
+        val_set = CifarValidationDataset(
+            cifar_data_folder=args.val_data_path,
+            download=True,
+            img_size=args.img_upsampled_size if args.up_sampler_path else args.img_size
+        )
+    else:
+        val_set = ProjectDataSet(
+            image_folder_path=args.val_data_path,
+            data_label_path=args.val_data_label_path,
+            is_training=False,
+            is_superclass=False,
+            img_size=args.img_size,
+            normalize=False
+        )
 
     if not args.external_validation:
         train_set = torch.utils.data.ConcatDataset(
