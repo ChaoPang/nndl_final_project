@@ -22,10 +22,17 @@ class PretrainedFeatureExtractor(nn.Module):
             for _, p in self._feature_extractor.named_parameters():
                 p.requires_grad = False
 
-        self._mb_conv = MBConv(96, 96 * 2, 2, 2, True)
+        self._mb_conv = nn.Sequential(
+            MBConv(
+                64, 64 * 2, 2, 2, True
+            ),
+            MBConv(
+                64 * 2, 64 * 4, 2, 2, True
+            )
+        )
 
         self._linear_layer = nn.Sequential(
-            nn.Linear(96 * 2, self.output_num_features)
+            nn.Linear(64 * 4, self.output_num_features)
         )
 
     def forward(self, x: Tensor) -> Tensor:
@@ -200,7 +207,7 @@ class FinetuneEfficientNetV2FeatureExtractor(PretrainedFeatureExtractor):
         if self._deep_feature:
             node_name = 'features.4.9.block.3'
         else:
-            node_name = 'features.3.6.block.1'
+            node_name = 'features.2.6.block.1'
 
         return create_feature_extractor(
             self._get_pretrained_model(),
