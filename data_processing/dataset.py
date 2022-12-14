@@ -66,7 +66,8 @@ class ProjectDataSet(Dataset):
             is_training=True,
             is_superclass=True,
             img_size=8,
-            normalize=True
+            normalize=True,
+            multitask=False
     ):
         self._image_folder_path = image_folder_path
         self._data_label_path = data_label_path
@@ -76,8 +77,9 @@ class ProjectDataSet(Dataset):
         self._is_training = is_training
         self._img_size = img_size
         self._normalize = normalize
+        self._multitask = multitask
 
-        self._label_dict = self._get_class_label(
+        self._superclass_label_dict, self._subclass_label_dict = self._get_class_label(
             data_label_path
         )
 
@@ -85,18 +87,23 @@ class ProjectDataSet(Dataset):
             self,
             data_label_path: str
     ):
+        superclass_dict = dict()
+        subclass_dict = dict()
         if data_label_path:
             y_train_label = pd.read_csv(data_label_path)
-            class_column_name = 'superclass_index' if self._is_superclass else 'subclass_index'
-            if class_column_name not in y_train_label.columns:
-                raise RuntimeError(f'Required column {class_column_name} is missing')
-            if 'image' not in y_train_label.columns:
-                raise RuntimeError('Required column image_index is missing')
-            return dict(
-                (t.image, getattr(t, class_column_name))
-                for t in y_train_label.itertuples()
-            )
-        return dict()
+
+            if 'superclass_index' in y_train_label.columns:
+                superclass_dict = dict(
+                    (t.image, getattr(t, 'superclass_index'))
+                    for t in y_train_label.itertuples()
+                )
+            if 'subclass_index' in y_train_label.columns:
+                subclass_dict = dict(
+                    (t.image, getattr(t, 'subclass_index'))
+                    for t in y_train_label.itertuples()
+                )
+
+        return superclass_dict, subclass_dict
 
     def _get_transformers(self):
         transformers = []
@@ -127,7 +134,23 @@ class ProjectDataSet(Dataset):
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         img = Image.fromarray(img)
         img = self._get_transformers()(img)
-        return img, self._label_dict.get(self._file_names[idx], 0)
+
+        if self._multitask:
+            return (
+                img,
+                self._superclass_label_dict.get(self._file_names[idx], 0),
+                self._subclass_label_dict.get(self._file_names[idx], 0)
+            )
+        elif self._is_superclass:
+            return (
+                img,
+                self._superclass_label_dict.get(self._file_names[idx], 0)
+            )
+        else:
+            return (
+                img,
+                self._subclass_label_dict.get(self._file_names[idx], 0)
+            )
 
     def __len__(self):
         return len(self._file_names)

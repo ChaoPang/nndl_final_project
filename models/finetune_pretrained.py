@@ -251,6 +251,40 @@ class FinetuneEfficientNetV2(nn.Sequential):
         )
 
 
+class FinetuneEfficientNetV2MultiTask(FinetuneEfficientNetV2FeatureExtractor):
+
+    def __init__(
+            self,
+            num_classes,
+            num_sub_classes,
+            dropout_rate=0.5,
+            freeze_weight=False,
+            deep_feature=False
+    ):
+        super(FinetuneEfficientNetV2FeatureExtractor, self).__init__(
+            freeze_weight=freeze_weight,
+            deep_feature=deep_feature
+        )
+        self._classifier_1 = nn.Sequential(*create_head_classifier(num_classes, dropout_rate))
+        self._classifier_2 = nn.Sequential(*create_head_classifier(num_sub_classes, dropout_rate))
+
+    def forward(self, x: Tensor) -> Tensor:
+        # This returns a named feature
+        named_features = self._feature_extractor(x)
+        # Extract the tensor
+        features = self._get_tensor_by_name(named_features)
+        features = F.max_pool2d(features, features.shape[-1])
+        features = features.view(features.size(0), -1)
+        features = self._linear_layer(features)
+        out1 = self._classifier_1(
+            features
+        )
+        out2 = self._classifier_2(
+            features
+        )
+        return out1, out2
+
+
 class FinetuneEnsembleModelAbstract(nn.Module):
     def __init__(
             self,

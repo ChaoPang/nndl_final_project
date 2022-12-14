@@ -52,6 +52,7 @@ def create_arg_parser():
     parser.add_argument('--dropout_rate', default=0.5, type=float, help='Dropout rate')
     parser.add_argument('--freeze_weight', action='store_true',
                         help='Whether or not we freeze the weights of the pretrained model')
+    parser.add_argument('--multitask', action='store_true')
     parser.add_argument('--deep_feature', action='store_true',
                         help='Whether or not extract the deep feature')
     parser.add_argument('--normalize', action='store_true',
@@ -112,7 +113,8 @@ def create_dir_if_not_exists(directory):
 def train(
         net,
         train_loader,
-        criterion,
+        criterion_1,
+        criterion_2,
         optimizer,
         device,
         up_sampler: nn.Module = None
@@ -136,8 +138,9 @@ def train(
     else:
         data_normalize_transform = get_data_normalize()
 
-    for batch_idx, (inputs, targets) in enumerate(train_loader):
-        inputs, targets = inputs.to(device), targets.to(device)
+    for batch_idx, (inputs, superclass_targets, subclass_targets) in enumerate(train_loader):
+        inputs, superclass_targets, subclass_targets = inputs.to(device), superclass_targets.to(
+            device), subclass_targets.to(device)
 
         if up_sampler:
             inputs = up_sampler(inputs)
@@ -145,28 +148,35 @@ def train(
         inputs = data_normalize_transform(inputs)
 
         optimizer.zero_grad()
-        outputs = net(inputs)
-        loss = criterion(outputs, targets)
+        superclass_outputs, subclass_outputs = net(inputs)
+        superclass_loss = criterion_1(superclass_outputs, superclass_targets)
+        subclass_loss = criterion_2(subclass_outputs, subclass_targets)
+
+        loss = superclass_loss + subclass_loss
         loss.backward()
         optimizer.step()
 
-        train_loss += loss.item()
-        _, predicted = outputs.max(1)
-        total += targets.size(0)
-        correct += predicted.eq(targets).sum().item()
+        train_loss += superclass_loss.item()
+        _, subclass_predicted = subclass_outputs.max(1)
 
-        progress_bar(batch_idx, len(train_loader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
-                     % (train_loss / (batch_idx + 1), 100. * correct / total, correct, total))
+        total += subclass_targets.size(0)
+        correct += subclass_predicted.eq(subclass_targets).sum().item()
 
-    acc = 100. * correct / total
-    train_average_loss = train_loss / total
+        progress_bar(batch_idx, len(train_loader),
+                     'Superclass Loss: %.3f | Subclass Loss: %.3f | Acc: %.3f%% (%d/%d)'
+                     % (superclass_loss, subclass_loss, 100. * correct / total, correct, total))
+
+        acc = 100. * correct / total
+        train_average_loss = train_loss / total
+
     return train_average_loss, acc
 
 
 def validate(
         net,
         val_loader,
-        criterion,
+        criterion_1,
+        criterion_2,
         device,
         up_sampler: nn.Module = None
 ):
@@ -188,22 +198,25 @@ def validate(
         data_normalize_transform = get_data_normalize()
 
     with torch.no_grad():
-        for batch_idx, (inputs, targets) in enumerate(val_loader):
-            inputs, targets = inputs.to(device), targets.to(device)
+        for batch_idx, (inputs, superclass_targets, subclass_targets) in enumerate(val_loader):
+            inputs, superclass_targets, subclass_targets = inputs.to(
+                device), superclass_targets.to(device), subclass_targets.to(device)
             if up_sampler:
                 inputs = up_sampler(inputs)
             inputs = data_normalize_transform(inputs)
 
-            outputs = net(inputs)
-            loss = criterion(outputs, targets)
-
+            superclass_outputs, subclass_outputs = net(inputs)
+            superclass_loss = criterion_1(superclass_outputs, superclass_targets)
+            subclass_loss = criterion_2(subclass_outputs, subclass_targets)
+            loss = superclass_loss + subclass_loss
             val_loss += loss.item()
-            _, predicted = outputs.max(1)
-            total += targets.size(0)
-            correct += predicted.eq(targets).sum().item()
+            _, subclass_predicted = subclass_outputs.max(1)
+            total += subclass_outputs.size(0)
+            correct += subclass_predicted.eq(subclass_targets).sum().item()
 
-            progress_bar(batch_idx, len(val_loader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
-                         % (val_loss / (batch_idx + 1), 100. * correct / total, correct, total))
+            progress_bar(batch_idx, len(val_loader),
+                         'Superclass Loss: %.3f | Subclass Loss: %.3f | Acc: %.3f%% (%d/%d)'
+                         % (superclass_loss, subclass_loss, 100. * correct / total, correct, total))
 
     acc = 100. * correct / total
     val_average_loss = val_loss / total
@@ -238,19 +251,19 @@ def predict(
     correct = 0
     total = 0
     with torch.no_grad():
-        for batch_idx, (inputs, targets) in enumerate(data_loader):
+        for batch_idx, (inputs, superclass_targets, subclass_targets) in enumerate(data_loader):
 
             if up_sampler:
                 inputs = up_sampler(inputs.to(device))
 
             inputs = data_normalize_transform(inputs)
-            outputs = net(inputs.to(device))
-            predicted = torch.argmax(outputs, dim=-1)
-            predictions.append(predicted.detach().cpu().numpy())
+            superclass_outputs, subclass_output = net(inputs.to(device))
+            subclass_predicted = torch.argmax(subclass_output, dim=-1)
+            predictions.append(subclass_predicted.detach().cpu().numpy())
             if is_label_available:
-                labels.append(targets.detach().cpu().numpy())
-                total += targets.size(0)
-                correct += predicted.detach().cpu().eq(targets).sum().item()
+                labels.append(subclass_targets.detach().cpu().numpy())
+                total += subclass_targets.size(0)
+                correct += subclass_predicted.detach().cpu().eq(subclass_targets).sum().item()
                 progress_bar(batch_idx, len(data_loader), 'Acc: %.3f%% (%d/%d)'
                              % (100. * correct / total, correct, total))
     predictions_pd = pd.DataFrame(np.hstack(predictions), columns=['predictions'])
@@ -279,7 +292,8 @@ def train_model(
         val_set, batch_size=args.batch_size, shuffle=True, num_workers=4
     )
 
-    criterion = nn.CrossEntropyLoss()
+    criterion_1 = nn.CrossEntropyLoss()
+    criterion_2 = nn.CrossEntropyLoss()
     optimizer = optim.Adam(
         net.parameters(), lr=args.lr, weight_decay=1e-4, eps=0.1
     )
@@ -289,7 +303,8 @@ def train_model(
         net,
         train_dataloader,
         val_dataloader,
-        criterion,
+        criterion_1,
+        criterion_2,
         optimizer,
         scheduler,
         args.epochs,
@@ -322,7 +337,11 @@ def main(args):
 
     # net = FinetuneResnet152(num_classes=3, deep_feature=args.deep_feature)
     # net = FinetuneRegNet(num_classes=3, deep_feature=args.deep_feature)
-    net = FinetuneEfficientNetV2(num_classes=args.num_classes, deep_feature=args.deep_feature)
+    net = FinetuneEfficientNetV2MultiTask(
+        num_classes=args.num_classes,
+        num_sub_classes=89,
+        deep_feature=args.deep_feature
+    )
     # net = VisionTransformer(img_size=args.img_size)
     # net = FinetuneEfficientNetEnsembleModel(
     #     num_classes=3,
@@ -372,7 +391,8 @@ def create_datasets(
         is_training=True,
         is_superclass=args.is_superclass,
         img_size=args.img_size,
-        normalize=args.normalize
+        normalize=args.normalize,
+        multitask=args.multitask
     )
 
     test_set = ProjectDataSet(
@@ -380,7 +400,8 @@ def create_datasets(
         is_training=False,
         is_superclass=args.is_superclass,
         img_size=args.img_size,
-        normalize=args.normalize
+        normalize=args.normalize,
+        multitask=args.multitask
     )
 
     # If the up sampler is enabled, we use the default 32 by 32 image for validation
@@ -398,7 +419,8 @@ def create_datasets(
             is_training=False,
             is_superclass=False,
             img_size=args.img_size,
-            normalize=args.normalize
+            normalize=args.normalize,
+            multitask=args.multitask
         )
 
     if not args.external_validation:
@@ -445,7 +467,8 @@ def training_loop(
         net,
         train_dataloader,
         val_dataloader,
-        criterion,
+        criterion_1,
+        criterion_2,
         optimizer,
         scheduler,
         epochs,
@@ -464,7 +487,8 @@ def training_loop(
         train_loss, train_acc = train(
             net,
             train_dataloader,
-            criterion,
+            criterion_1,
+            criterion_2,
             optimizer,
             device,
             up_sampler
@@ -473,7 +497,8 @@ def training_loop(
         val_loss, val_acc = validate(
             net,
             val_dataloader,
-            criterion,
+            criterion_1,
+            criterion_2,
             device,
             up_sampler
         )
