@@ -73,7 +73,7 @@ class ProjectDataSet(Dataset):
         self._file_names = get_all_filenames(image_folder_path)
         self._is_training = is_training
         self._is_superclass = is_superclass
-        self._is_training = data_label_path is not None
+        self._is_training = is_training
         self._img_size = img_size
         self._normalize = normalize
 
