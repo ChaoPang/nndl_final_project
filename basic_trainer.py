@@ -54,6 +54,8 @@ def create_arg_parser():
                         help='Whether or not we freeze the weights of the pretrained model')
     parser.add_argument('--deep_feature', action='store_true',
                         help='Whether or not extract the deep feature')
+    parser.add_argument('--normalize', action='store_true',
+                        help='Whether or not normalize the features')
     parser.add_argument('--early_stopping_patience', default=10, type=int,
                         help='Early stopping patience')
     parser.add_argument('--img_size', default=8, type=int, help='Image Size')
@@ -370,7 +372,7 @@ def create_datasets(
         is_training=True,
         is_superclass=args.is_superclass,
         img_size=args.img_size,
-        normalize=False
+        normalize=args.normalize
     )
 
     test_set = ProjectDataSet(
@@ -378,7 +380,7 @@ def create_datasets(
         is_training=False,
         is_superclass=args.is_superclass,
         img_size=args.img_size,
-        normalize=False
+        normalize=args.normalize
     )
 
     # If the up sampler is enabled, we use the default 32 by 32 image for validation
@@ -396,12 +398,10 @@ def create_datasets(
             is_training=False,
             is_superclass=False,
             img_size=args.img_size,
-            normalize=False
+            normalize=args.normalize
         )
 
     if not args.external_validation:
-        train_set = torch.utils.data.ConcatDataset(
-            [train_set, val_set])
         train_total = len(train_set)
         train_size = int(train_total * 0.8)
         val_size = train_total - train_size
