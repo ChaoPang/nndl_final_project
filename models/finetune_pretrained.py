@@ -5,6 +5,7 @@ from torch import nn, Tensor
 from torchvision import models
 import torch.nn.functional as F
 from torchvision.models.feature_extraction import create_feature_extractor
+from models.mbconv_layers import MBConv
 
 
 class PretrainedFeatureExtractor(nn.Module):
@@ -21,8 +22,10 @@ class PretrainedFeatureExtractor(nn.Module):
             for _, p in self._feature_extractor.named_parameters():
                 p.requires_grad = False
 
+        self._mb_conv = MBConv(96, 96 * 2, 2, 2, True)
+
         self._linear_layer = nn.Sequential(
-            nn.Linear(self._get_num_features(), self.output_num_features)
+            nn.Linear(96 * 2, self.output_num_features)
         )
 
     def forward(self, x: Tensor) -> Tensor:
@@ -30,6 +33,7 @@ class PretrainedFeatureExtractor(nn.Module):
         named_features = self._feature_extractor(x)
         # Extract the tensor
         features = self._get_tensor_by_name(named_features)
+        features = self._mb_conv(features)
         features = F.avg_pool2d(features, features.shape[-1])
         features = features.view(features.size(0), -1)
         out = self._linear_layer(features)
@@ -211,7 +215,7 @@ class FinetuneEfficientNetV2FeatureExtractor(PretrainedFeatureExtractor):
 
     def _get_pretrained_model(self) -> nn.Module:
         return models.efficientnet_v2_l(
-            weights=models.efficientnet.EfficientNet_V2_L_Weights
+            weights=models.efficientnet.EfficientNet_V2_L_Weights.DEFAULT
         )
 
 
