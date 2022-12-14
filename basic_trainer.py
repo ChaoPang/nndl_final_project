@@ -12,6 +12,7 @@ from torch.utils.data import DataLoader
 
 from data_processing.dataset import ProjectDataSet, CifarValidationDataset, get_data_normalize
 from models.finetune_pretrained import *
+from utils.class_mapping import IDX_TO_SUPERCLASS_DICT, IDX_TO_SUBCLASS_MAPPING
 
 from utils.utils import progress_bar
 from utils.compute_mean_std import calculate_stats
@@ -19,12 +20,6 @@ from utils.compute_mean_std import calculate_stats
 import matplotlib.pyplot as plt
 
 MODEL_NAME = 'best_model.pt'
-
-IDX_TO_SUPERCLASS_DICT = {
-    0: 'bird',
-    1: 'dog',
-    2: 'reptile'
-}
 
 sys.setrecursionlimit(10000)
 
@@ -38,6 +33,12 @@ def map_idx_to_superclass(
         predictions: pd.Series
 ):
     return predictions.apply(IDX_TO_SUPERCLASS_DICT.get)
+
+
+def map_idx_to_subclass(
+        predictions: pd.Series
+):
+    return predictions.apply(IDX_TO_SUBCLASS_MAPPING.get)
 
 
 def create_arg_parser():
@@ -252,6 +253,7 @@ def predict(
                              % (100. * correct / total, correct, total))
     predictions_pd = pd.DataFrame(np.hstack(predictions), columns=['predictions'])
     predictions_pd['prediction_class'] = map_idx_to_superclass(predictions_pd.predictions)
+    predictions_pd['prediction_subclass'] = map_idx_to_subclass(predictions_pd.predictions)
 
     if is_label_available:
         predictions_pd['label'] = np.hstack(labels)
