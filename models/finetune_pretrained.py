@@ -113,14 +113,14 @@ def create_head_classifier(
         dropout_rate
 ):
     return [
-        nn.Linear(FinetuneRegNetFeatureExtractor.output_num_features, 128),
+        nn.Linear(FinetuneRegNetFeatureExtractor.output_num_features, 512),
         nn.ReLU(),
         nn.Dropout(dropout_rate),
-        nn.Linear(128, 64),
+        nn.Linear(512, 256),
         nn.ReLU(),
         nn.Dropout(dropout_rate),
         nn.Linear(
-            64,
+            256,
             num_classes
         )]
 
