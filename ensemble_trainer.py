@@ -8,10 +8,9 @@ import pandas as pd
 import torch.nn.functional
 
 import torch.optim as optim
-from torchvision import transforms
 from torch.utils.data import DataLoader
 
-from data_processing.dataset import ProjectDataSet, CifarValidationDataset, get_data_normalize
+from data_processing.dataset import ProjectDataSet, CifarValidationDataset
 from models.finetune_pretrained import *
 from utils.class_mapping import IDX_TO_SUPERCLASS_DICT, IDX_TO_SUBCLASS_MAPPING
 
@@ -23,11 +22,6 @@ import matplotlib.pyplot as plt
 MODEL_NAME = 'best_model.pt'
 
 sys.setrecursionlimit(10000)
-
-pretrained_normalize = transforms.Normalize(
-    mean=[0.485, 0.456, 0.406],
-    std=[0.229, 0.224, 0.225]
-)
 
 
 def map_idx_to_superclass(
@@ -192,8 +186,7 @@ def predict(
         image_folder_path=args.test_data_path,
         is_training=False,
         is_superclass=args.is_superclass,
-        img_size=args.img_size,
-        normalize=args.normalize
+        img_size=args.img_size
     )
 
     data_loader = DataLoader(
@@ -371,8 +364,7 @@ def create_training_datasets(
         data_label_path=args.training_label_path,
         is_training=True,
         is_superclass=args.is_superclass,
-        img_size=args.img_size,
-        normalize=args.normalize
+        img_size=args.img_size
     )
 
     # If the up sampler is enabled, we use the default 32 by 32 image for validation
@@ -383,29 +375,18 @@ def create_training_datasets(
             download=True,
             img_size=args.img_upsampled_size if args.up_sampler_path else args.img_size
         )
-    else:
-        val_set = ProjectDataSet(
-            image_folder_path=args.val_data_path,
-            data_label_path=args.val_data_label_path,
-            is_training=False,
-            is_superclass=False,
-            img_size=args.img_size,
-            normalize=args.normalize
+        # Randomly slice out data for training to inject more noise into the ensemble method
+        train_size = int(len(train_set) * train_percentage)
+        train_set, _ = torch.utils.data.random_split(
+            train_set, [train_size, len(train_set) - train_size]
         )
-
-    if not args.external_validation:
+    else:
         train_total = len(train_set)
         train_size = int(train_total * 0.8)
         val_size = train_total - train_size
         train_set, val_set = torch.utils.data.random_split(
             train_set, [train_size, val_size]
         )
-
-    # Randomly slice out data for training to inject more noise into the ensemble method
-    train_size = int(len(train_set) * train_percentage)
-    train_set, _ = torch.utils.data.random_split(
-        train_set, [train_size, len(train_set) - train_size]
-    )
 
     print(f'train_set size: {len(train_set)}')
     print(f'val_set size: {len(val_set)}')
