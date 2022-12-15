@@ -1,3 +1,4 @@
+import random
 import sys
 import os
 import pickle
@@ -247,7 +248,6 @@ def train_model(
     histories = []
     # Train each net individually
     for net in ensemble_models:
-        print(f'Training {net.name}')
         train_set, val_set = create_training_datasets(args)
 
         train_dataloader = DataLoader(
@@ -260,13 +260,20 @@ def train_model(
 
         net = net.to(get_device())
 
+        weight_decay = random.uniform(1e-3, 1e-4)
+        epsilon = random.uniform(0.01, 0.1)
+
         criterion = nn.CrossEntropyLoss()
         optimizer = optim.Adam(
-            net.parameters(), lr=args.lr, weight_decay=1e-4, eps=0.1
+            net.parameters(), lr=args.lr, weight_decay=weight_decay, eps=epsilon
         )
 
+        gamma = random.uniform(0.85, 0.95)
         # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
-        scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
+        scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=gamma)
+
+        print(f'Training {net.name}; weight_decay={weight_decay}; epsilon={epsilon}; gamma={gamma}')
+
         history = training_loop(
             net,
             train_dataloader,
@@ -360,7 +367,8 @@ def plot_training_loss(history, checkpoint_path):
 
 
 def create_training_datasets(
-        args
+        args,
+        train_percentage=0.8
 ):
     train_set = ProjectDataSet(
         image_folder_path=args.training_data_path,
@@ -396,6 +404,12 @@ def create_training_datasets(
         train_set, val_set = torch.utils.data.random_split(
             train_set, [train_size, val_size]
         )
+
+    # Randomly slice out data for training to inject more noise into the ensemble method
+    train_size = int(len(train_set) * train_percentage)
+    train_set, _ = torch.utils.data.random_split(
+        train_set, [train_size, len(train_set) - train_size]
+    )
 
     print(f'train_set size: {len(train_set)}')
     print(f'val_set size: {len(val_set)}')
