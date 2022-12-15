@@ -252,13 +252,13 @@ def train_model(
 
         if args.is_superclass:
             # Empirical evidence
-            weight_decay = 1e-4
-            epsilon = 0.1
-            gamma = 0.95
+            weight_decay = random.uniform(1e-3, 1e-4)
+            epsilon = random.uniform(0.01, 0.1)
         else:
             weight_decay = random.uniform(0.5e-3, 1.5e-3)
             epsilon = random.uniform(0.05, 0.15)
-            gamma = random.uniform(0.85, 0.95)
+
+        gamma = random.uniform(0.85, 0.95)
 
         criterion = nn.CrossEntropyLoss()
         optimizer = optim.Adam(

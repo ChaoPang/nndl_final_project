@@ -8,7 +8,7 @@ from torchvision.models.feature_extraction import create_feature_extractor
 
 
 class PretrainedFeatureExtractor(nn.Module):
-    output_num_features = 256
+    output_num_features = 512
 
     def __init__(self, freeze_weight, deep_feature: bool = False):
         super(PretrainedFeatureExtractor, self).__init__()
