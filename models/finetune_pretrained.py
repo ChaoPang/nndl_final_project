@@ -124,13 +124,11 @@ class FinetuneWideResnet101(nn.Sequential):
             ),
             *create_head_classifier(num_classes, dropout_rate)
         )
-        self._name = name
+        self._name = name if name else 'FinetuneWideResnet101'
 
     @property
     def name(self):
-        if hasattr(self, '_name'):
-            return getattr(self, '_name')
-        return 'FinetuneWideResnet101'
+        return self._name
 
 
 class FinetuneResnet152(nn.Sequential):
@@ -150,13 +148,11 @@ class FinetuneResnet152(nn.Sequential):
             ),
             *create_head_classifier(num_classes, dropout_rate)
         )
-        self._name = name
+        self._name = name if name else 'FinetuneResnet152'
 
     @property
     def name(self):
-        if hasattr(self, '_name'):
-            return getattr(self, '_name')
-        return 'FinetuneResnet152'
+        return self._name
 
 
 def create_head_classifier(
@@ -229,13 +225,11 @@ class FinetuneRegNet(nn.Sequential):
             ),
             *create_head_classifier(num_classes, dropout_rate)
         )
-        self._name = name
+        self._name = name if name else 'FinetuneRegNet'
 
     @property
     def name(self):
-        if hasattr(self, '_name'):
-            return getattr(self, '_name')
-        return 'FinetuneRegNet'
+        return self._name
 
 
 class FinetuneEfficientNetV2FeatureExtractor(PretrainedFeatureExtractor):
@@ -315,13 +309,11 @@ class FinetuneEfficientNetV2(nn.Sequential):
             ),
             *create_head_classifier(num_classes, dropout_rate)
         )
-        self._name = name
+        self._name = name if name else 'FinetuneEfficientNetV2'
 
     @property
     def name(self):
-        if hasattr(self, '_name'):
-            return getattr(self, '_name')
-        return 'FinetuneEfficientNetV2'
+        return self._name
 
 
 class FinetuneEfficientNetB7(nn.Sequential):
@@ -341,13 +333,11 @@ class FinetuneEfficientNetB7(nn.Sequential):
             ),
             *create_head_classifier(num_classes, dropout_rate)
         )
-        self._name = name
+        self._name = name if name else 'FinetuneEfficientNetB7'
 
     @property
     def name(self):
-        if hasattr(self, '_name'):
-            return getattr(self, '_name')
-        return 'FinetuneEfficientNetB7'
+        return self._name
 
 
 class FinetuneEnsembleModelAbstract(nn.Module):
