@@ -66,7 +66,7 @@ class ProjectDataSet(Dataset):
             is_training=True,
             is_superclass=True,
             img_size=8,
-            normalize=True
+            normalize=False
     ):
         self._image_folder_path = image_folder_path
         self._data_label_path = data_label_path
