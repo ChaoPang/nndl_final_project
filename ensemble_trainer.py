@@ -275,6 +275,11 @@ def train_model(
             up_sampler
         )
 
+        net = torch.load(
+            os.path.join(args.checkpoint_path, net.name, MODEL_NAME),
+            map_location=get_device()
+        )
+
         history['name'] = net.name
 
         histories.append(history)
