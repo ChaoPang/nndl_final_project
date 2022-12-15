@@ -58,6 +58,8 @@ def create_arg_parser():
     parser.add_argument('--training_label_path', required=True, help='the path to training label')
     parser.add_argument('--test_data_path', required=True,
                         help='input_folder containing the images')
+    parser.add_argument('--val_data_path', required=True,
+                        help='input_folder containing the CIFAR images')
     parser.add_argument('--checkpoint_path', required=True, help='checkpoint_path for the model')
     parser.add_argument('--external_validation', action='store_true',
                         help='Using CIFAR data to test the model')
@@ -248,8 +250,12 @@ def train_model(
 
         net = net.to(get_device())
 
-        weight_decay = random.uniform(1e-3, 1e-4)
-        epsilon = random.uniform(0.01, 0.1)
+        if args.is_superclass:
+            weight_decay = random.uniform(1e-3, 1e-4)
+            epsilon = random.uniform(0.01, 0.1)
+        else:
+            weight_decay = random.uniform(0.5e-3, 1.5e-3)
+            epsilon = random.uniform(0.05, 0.15)
 
         criterion = nn.CrossEntropyLoss()
         optimizer = optim.Adam(
@@ -275,6 +281,7 @@ def train_model(
             up_sampler
         )
 
+        # Load the best model according to the val loss
         net = torch.load(
             os.path.join(args.checkpoint_path, net.name, MODEL_NAME),
             map_location=get_device()
