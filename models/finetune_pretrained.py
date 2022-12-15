@@ -326,7 +326,14 @@ class FinetuneEfficientNetV2(nn.Sequential):
 
 class FinetuneEfficientNetB7(nn.Sequential):
 
-    def __init__(self, num_classes, dropout_rate=0.5, freeze_weight=False, deep_feature=False):
+    def __init__(
+            self,
+            num_classes,
+            dropout_rate=0.5,
+            freeze_weight=False,
+            deep_feature=False,
+            name=None
+    ):
         super().__init__(
             FinetuneEfficientNetB7FeatureExtractor(
                 deep_feature=deep_feature,
@@ -334,9 +341,12 @@ class FinetuneEfficientNetB7(nn.Sequential):
             ),
             *create_head_classifier(num_classes, dropout_rate)
         )
+        self._name = name
 
     @property
     def name(self):
+        if hasattr(self, '_name'):
+            return getattr(self, '_name')
         return 'FinetuneEfficientNetB7'
 
 

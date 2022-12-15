@@ -251,18 +251,20 @@ def train_model(
         net = net.to(get_device())
 
         if args.is_superclass:
-            weight_decay = random.uniform(1e-3, 1e-4)
-            epsilon = random.uniform(0.01, 0.1)
+            # Empirical evidence
+            weight_decay = 1e-4
+            epsilon = 0.1
+            gamma = 0.95
         else:
             weight_decay = random.uniform(0.5e-3, 1.5e-3)
             epsilon = random.uniform(0.05, 0.15)
+            gamma = random.uniform(0.85, 0.95)
 
         criterion = nn.CrossEntropyLoss()
         optimizer = optim.Adam(
             net.parameters(), lr=args.lr, weight_decay=weight_decay, eps=epsilon
         )
 
-        gamma = random.uniform(0.85, 0.95)
         # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
         scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=gamma)
 
