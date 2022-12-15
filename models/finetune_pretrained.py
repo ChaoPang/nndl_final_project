@@ -95,17 +95,12 @@ class FinetuneResnet152(nn.Sequential):
                 deep_feature=deep_feature,
                 freeze_weight=freeze_weight
             ),
-            nn.Linear(FinetuneResnet152FeatureExtractor.output_num_features, 128),
-            nn.ReLU(),
-            nn.Dropout(dropout_rate),
-            nn.Linear(128, 64),
-            nn.ReLU(),
-            nn.Dropout(dropout_rate),
-            nn.Linear(
-                64,
-                num_classes
-            )
+            *create_head_classifier(num_classes, dropout_rate)
         )
+
+    @property
+    def name(self):
+        return 'FinetuneResnet152'
 
 
 def create_head_classifier(
@@ -178,6 +173,10 @@ class FinetuneRegNet(nn.Sequential):
             *create_head_classifier(num_classes, dropout_rate)
         )
 
+    @property
+    def name(self):
+        return 'FinetuneRegNet'
+
 
 class FinetuneEfficientNetV2FeatureExtractor(PretrainedFeatureExtractor):
 
@@ -249,6 +248,26 @@ class FinetuneEfficientNetV2(nn.Sequential):
             ),
             *create_head_classifier(num_classes, dropout_rate)
         )
+
+    @property
+    def name(self):
+        return 'FinetuneEfficientNetV2'
+
+
+class FinetuneEfficientNetB7(nn.Sequential):
+
+    def __init__(self, num_classes, dropout_rate=0.5, freeze_weight=False, deep_feature=False):
+        super().__init__(
+            FinetuneEfficientNetB7FeatureExtractor(
+                deep_feature=deep_feature,
+                freeze_weight=freeze_weight
+            ),
+            *create_head_classifier(num_classes, dropout_rate)
+        )
+
+    @property
+    def name(self):
+        return 'FinetuneEfficientNetB7'
 
 
 class FinetuneEnsembleModelAbstract(nn.Module):
