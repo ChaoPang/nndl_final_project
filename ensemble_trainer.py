@@ -15,7 +15,6 @@ from models.finetune_pretrained import *
 from utils.class_mapping import IDX_TO_SUPERCLASS_DICT, IDX_TO_SUBCLASS_MAPPING
 
 from utils.utils import progress_bar
-from utils.compute_mean_std import calculate_stats
 
 import matplotlib.pyplot as plt
 
@@ -49,8 +48,8 @@ def create_arg_parser():
                         help='Whether or not we freeze the weights of the pretrained model')
     parser.add_argument('--deep_feature', action='store_true',
                         help='Whether or not extract the deep feature')
-    parser.add_argument('--normalize', action='store_true',
-                        help='Whether or not normalize the features')
+    parser.add_argument('--mix_model', action='store_true',
+                        help='Whether or not we use mixed ensemble models')
     parser.add_argument('--early_stopping_patience', default=10, type=int,
                         help='Early stopping patience')
     parser.add_argument('--img_size', default=8, type=int, help='Image Size')
@@ -297,33 +296,43 @@ def main(args):
     else:
         up_sampler = None
 
-    ensemble_models = [
-        FinetuneResnet152(
-            num_classes=args.num_classes,
-            deep_feature=args.deep_feature,
-            freeze_weight=args.freeze_weight
-        ),
-        FinetuneRegNet(
-            num_classes=args.num_classes,
-            deep_feature=args.deep_feature,
-            freeze_weight=args.freeze_weight
-        ),
-        FinetuneEfficientNetV2(
-            num_classes=args.num_classes,
-            deep_feature=args.deep_feature,
-            freeze_weight=args.freeze_weight
-        ),
-        FinetuneEfficientNetV2(
-            num_classes=args.num_classes,
-            deep_feature=args.deep_feature,
-            freeze_weight=args.freeze_weight
-        ),
-        FinetuneEfficientNetB7(
-            num_classes=args.num_classes,
-            deep_feature=args.deep_feature,
-            freeze_weight=args.freeze_weight
-        )
-    ]
+    if args.mix_model:
+        ensemble_models = [
+            FinetuneResnet152(
+                num_classes=args.num_classes,
+                deep_feature=args.deep_feature,
+                freeze_weight=args.freeze_weight
+            ),
+            FinetuneWideResnet101(
+                num_classes=args.num_classes,
+                deep_feature=args.deep_feature,
+                freeze_weight=args.freeze_weight
+            ),
+            FinetuneRegNet(
+                num_classes=args.num_classes,
+                deep_feature=args.deep_feature,
+                freeze_weight=args.freeze_weight
+            ),
+            FinetuneEfficientNetV2(
+                num_classes=args.num_classes,
+                deep_feature=args.deep_feature,
+                freeze_weight=args.freeze_weight
+            ),
+            FinetuneEfficientNetB7(
+                num_classes=args.num_classes,
+                deep_feature=args.deep_feature,
+                freeze_weight=args.freeze_weight
+            )
+        ]
+    else:
+        ensemble_models = [
+            FinetuneEfficientNetV2(
+                num_classes=args.num_classes,
+                deep_feature=args.deep_feature,
+                freeze_weight=args.freeze_weight,
+                name=f'FinetuneEfficientNetV2_{i}'
+            ) for i in range(5)
+        ]
 
     histories = train_model(
         ensemble_models,

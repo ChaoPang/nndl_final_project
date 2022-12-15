@@ -81,6 +81,58 @@ class FinetuneResnet152FeatureExtractor(PretrainedFeatureExtractor):
         return list(self._feature_extractor.modules())[-1].num_features
 
 
+class FinetuneWideResnet101FeatureExtractor(FinetuneResnet152FeatureExtractor):
+    def __init__(
+            self,
+            freeze_weight=False,
+            deep_feature=False
+    ):
+        super(FinetuneResnet152FeatureExtractor, self).__init__(
+            deep_feature=deep_feature,
+            freeze_weight=freeze_weight
+        )
+
+    def _get_feature_extractor(self) -> nn.Module:
+        if self._deep_feature:
+            node_name = 'layer3'
+        else:
+            node_name = 'layer2'
+        model = models.wide_resnet101_2(weights='DEFAULT')
+        return create_feature_extractor(
+            model,
+            return_nodes={node_name: self._get_feature_name()}
+        )
+
+    def _get_feature_name(self):
+        return 'wide_resnet101_feature'
+
+
+class FinetuneWideResnet101(nn.Sequential):
+
+    def __init__(
+            self,
+            num_classes,
+            dropout_rate=0.5,
+            freeze_weight=False,
+            deep_feature=False,
+            name=None
+    ):
+        super().__init__(
+            FinetuneWideResnet101FeatureExtractor(
+                deep_feature=deep_feature,
+                freeze_weight=freeze_weight
+            ),
+            *create_head_classifier(num_classes, dropout_rate)
+        )
+        self._name = name
+
+    @property
+    def name(self):
+        if hasattr(self, '_name'):
+            return getattr(self, '_name')
+        return 'FinetuneWideResnet101'
+
+
 class FinetuneResnet152(nn.Sequential):
 
     def __init__(
@@ -88,7 +140,8 @@ class FinetuneResnet152(nn.Sequential):
             num_classes,
             dropout_rate=0.5,
             freeze_weight=False,
-            deep_feature=False
+            deep_feature=False,
+            name=None
     ):
         super().__init__(
             FinetuneResnet152FeatureExtractor(
@@ -97,9 +150,12 @@ class FinetuneResnet152(nn.Sequential):
             ),
             *create_head_classifier(num_classes, dropout_rate)
         )
+        self._name = name
 
     @property
     def name(self):
+        if hasattr(self, '_name'):
+            return getattr(self, '_name')
         return 'FinetuneResnet152'
 
 
@@ -163,7 +219,8 @@ class FinetuneRegNet(nn.Sequential):
             num_classes,
             dropout_rate=0.5,
             freeze_weight=False,
-            deep_feature=False
+            deep_feature=False,
+            name=None
     ):
         super().__init__(
             FinetuneRegNetFeatureExtractor(
@@ -172,9 +229,12 @@ class FinetuneRegNet(nn.Sequential):
             ),
             *create_head_classifier(num_classes, dropout_rate)
         )
+        self._name = name
 
     @property
     def name(self):
+        if hasattr(self, '_name'):
+            return getattr(self, '_name')
         return 'FinetuneRegNet'
 
 
@@ -240,7 +300,14 @@ class FinetuneEfficientNetB7FeatureExtractor(FinetuneEfficientNetV2FeatureExtrac
 
 class FinetuneEfficientNetV2(nn.Sequential):
 
-    def __init__(self, num_classes, dropout_rate=0.5, freeze_weight=False, deep_feature=False):
+    def __init__(
+            self,
+            num_classes,
+            dropout_rate=0.5,
+            freeze_weight=False,
+            deep_feature=False,
+            name=None
+    ):
         super().__init__(
             FinetuneEfficientNetV2FeatureExtractor(
                 deep_feature=deep_feature,
@@ -248,9 +315,12 @@ class FinetuneEfficientNetV2(nn.Sequential):
             ),
             *create_head_classifier(num_classes, dropout_rate)
         )
+        self._name = name
 
     @property
     def name(self):
+        if hasattr(self, '_name'):
+            return getattr(self, '_name')
         return 'FinetuneEfficientNetV2'
 
 
