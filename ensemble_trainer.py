@@ -164,21 +164,11 @@ def validate(
     correct = 0
     total = 0
 
-    if up_sampler:
-        val_mean, val_std = calculate_stats(val_loader, up_sampler)
-        data_normalize_transform = transforms.Normalize(
-            mean=val_mean,
-            std=val_std
-        )
-    else:
-        data_normalize_transform = get_data_normalize()
-
     with torch.no_grad():
         for batch_idx, (inputs, targets) in enumerate(val_loader):
             inputs, targets = inputs.to(get_device()), targets.to(get_device())
             if up_sampler:
                 inputs = up_sampler(inputs)
-            inputs = data_normalize_transform(inputs)
 
             outputs = net(inputs)
             loss = criterion(outputs, targets)
