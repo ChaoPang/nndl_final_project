@@ -65,10 +65,6 @@ def create_arg_parser():
     parser.add_argument('--training_label_path', required=True, help='the path to training label')
     parser.add_argument('--test_data_path', required=True,
                         help='input_folder containing the images')
-    parser.add_argument('--val_data_path', required=True,
-                        help='input_folder containing the CIFAR images')
-    parser.add_argument('--val_data_label_path', required='--is_superclass' not in sys.argv,
-                        help='input_folder containing the CIFAR images')
     parser.add_argument('--checkpoint_path', required=True, help='checkpoint_path for the model')
     parser.add_argument('--external_validation', action='store_true',
                         help='Using CIFAR data to test the model')
