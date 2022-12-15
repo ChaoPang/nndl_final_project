@@ -257,6 +257,7 @@ def train_model(
     histories = []
     # Train each net individually
     for net in ensemble_models:
+        print(f'Training {net.name}')
         train_set, val_set = create_training_datasets(args)
 
         train_dataloader = DataLoader(
