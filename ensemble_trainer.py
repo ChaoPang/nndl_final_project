@@ -285,6 +285,7 @@ def train_model(
                 torch.Tensor(train_y[sampled_index]).to(torch.long)
             ),
             batch_size=args.batch_size,
+            shuffle=True,
             num_workers=4
         )
 
@@ -338,7 +339,7 @@ def train_model(
                     inputs = up_sampler(inputs)
                 outputs = net(inputs)
                 _, predicted = outputs.max(1)
-                all_misses.append(predicted.eq(targets).int().detach().cpu().numpy())
+                all_misses.append(predicted.ne(targets).int().detach().cpu().numpy())
 
         all_misses = np.concatenate(all_misses)
         err_m = np.dot(w, all_misses)
