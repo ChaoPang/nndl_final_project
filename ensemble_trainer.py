@@ -276,7 +276,7 @@ def train_model(
             list(range(n_train)),
             size=n_of_samples,
             replace=True,
-            p=w
+            p=w / w.sum()
         )
 
         sampled_dataloader = DataLoader(
@@ -342,14 +342,13 @@ def train_model(
                 all_misses.append(predicted.ne(targets).int().detach().cpu().numpy())
 
         all_misses = np.concatenate(all_misses)
-        err_m = np.dot(w, all_misses)
-        alpha_m = 0.5 * np.log((1 - err_m) / float(err_m))
-        alphas.append(alpha_m)
+        err_m = np.dot(w, all_misses) / w.sum()
 
-        all_misses = (~all_misses.astype(bool)).astype(int) * (-1) + all_misses
+        alpha_m = np.log((1 - err_m) / float(err_m))
+        alphas.append(alpha_m)
+        # all_misses = (~all_misses.astype(bool)).astype(int) * (-1) + all_misses
         w = np.multiply(w, np.exp(all_misses.astype(float) * alpha_m))
-        # w needs to be a valid probability distribution
-        w = w / w.sum()
+
         w_s.append(w)
 
         history['name'] = net.name
