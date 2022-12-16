@@ -5,10 +5,12 @@ import pickle
 import argparse
 import numpy as np
 import pandas as pd
-import torch.nn.functional
+from scipy.special import softmax
 
+import torch.nn.functional
 import torch.optim as optim
 from torch.utils.data import DataLoader
+from torch.utils.data import TensorDataset
 
 from data_processing.dataset import ProjectDataSet, CifarValidationDataset
 from models.finetune_pretrained import *
@@ -180,6 +182,7 @@ def validate(
 
 def predict(
         ensemble_models,
+        alphas,
         args,
         up_sampler: nn.Module = None
 ):
@@ -206,12 +209,14 @@ def predict(
                 inputs = up_sampler(inputs.to(get_device()))
 
             outputs = []
-            for net in ensemble_models:
+            for net, alpha in zip(ensemble_models, alphas):
                 net.to(get_device())
                 net.eval()
-                outputs.append(net(inputs.to(get_device())))
+                predictions = net(inputs.to(get_device()))
+                outputs.append(predictions * alpha)
                 net.to('cpu')
-            average_output = torch.stack(outputs, dim=1).mean(dim=1)
+
+            average_output = torch.stack(outputs, dim=1).sum(dim=1)
             predicted = torch.argmax(average_output, dim=-1)
             predictions.append(predicted.detach().cpu().numpy())
             if args.test_label:
@@ -235,17 +240,39 @@ def train_model(
         args,
         up_sampler: nn.Module = None
 ):
+    train_set, val_set = create_training_datasets(args)
+
+    val_dataloader = DataLoader(
+        val_set,
+        batch_size=args.batch_size,
+        num_workers=4
+    )
+
+    # Getting the numpy arrays out, we can do boosting on the data points
+    train_x, train_y = convert_dataset_to_numpy(train_set)
+    n_train = len(train_x)
+    w = np.ones(n_train) / n_train
+
     histories = []
+    alphas = []
     # Train each net individually
     for net in ensemble_models:
-        train_set, val_set = create_training_datasets(args)
 
-        train_dataloader = DataLoader(
-            train_set, batch_size=args.batch_size, shuffle=True, num_workers=4
+        # Sample indices from the training data
+        sampled_index = np.random.choice(
+            list(range(n_train)),
+            size=n_train,
+            replace=True,
+            p=w
         )
 
-        val_dataloader = DataLoader(
-            val_set, batch_size=args.batch_size, shuffle=True, num_workers=4
+        train_dataloader = DataLoader(
+            TensorDataset(
+                torch.Tensor(train_x[sampled_index]),
+                torch.Tensor(train_y[sampled_index]).to(torch.long)
+            ),
+            batch_size=args.batch_size,
+            num_workers=4
         )
 
         net = net.to(get_device())
@@ -289,11 +316,31 @@ def train_model(
             map_location=get_device()
         )
 
-        history['name'] = net.name
+        # Let's calculate the error for this classifier
+        all_misses = []
+        with torch.no_grad():
+            for batch_idx, (inputs, targets) in enumerate(train_dataloader):
+                inputs, targets = inputs.to(get_device()), targets.to(get_device())
+                if up_sampler:
+                    inputs = up_sampler(inputs)
+                outputs = net(inputs)
+                _, predicted = outputs.max(1)
+                all_misses.append(predicted.eq(targets).int().detach().cpu().numpy())
 
+        all_misses = np.concatenate(all_misses)
+        err_m = np.dot(w, all_misses)
+        alpha_m = 0.5 * np.log((1 - err_m) / float(err_m))
+        alphas.append(alpha_m)
+
+        all_misses = (~all_misses.astype(bool)).astype(int) * (-1) + all_misses
+        w = np.multiply(w, np.exp(all_misses.astype(float) * alpha_m))
+        # w needs to be a valid probability distribution
+        w = w / w.sum()
+
+        history['name'] = net.name
         histories.append(history)
 
-    return histories
+    return alphas, histories
 
 
 def get_device():
@@ -348,7 +395,7 @@ def main(args):
             ) for i in range(5)
         ]
 
-    histories = train_model(
+    alphas, histories = train_model(
         ensemble_models,
         args,
         up_sampler
@@ -356,6 +403,7 @@ def main(args):
 
     predictions_pd = predict(
         ensemble_models,
+        alphas,
         args,
         up_sampler
     )
@@ -378,9 +426,19 @@ def plot_training_loss(history, checkpoint_path):
     plt.savefig(checkpoint_path + "/training_curve.png")
 
 
+def convert_dataset_to_numpy(dataset):
+    dataset_x = []
+    dataset_y = []
+    for img, target in iter(dataset):
+        dataset_x.append(img.detach().cpu())
+        dataset_y.append(target)
+    dataset_x = np.stack(dataset_x, axis=0)
+    dataset_y = np.asarray(dataset_y)
+    return dataset_x, dataset_y
+
+
 def create_training_datasets(
-        args,
-        train_percentage=0.8
+        args
 ):
     train_set = ProjectDataSet(
         image_folder_path=args.training_data_path,
@@ -398,14 +456,9 @@ def create_training_datasets(
             download=True,
             img_size=args.img_upsampled_size if args.up_sampler_path else args.img_size
         )
-        # Randomly slice out data for training to inject more noise into the ensemble method
-        train_size = int(len(train_set) * train_percentage)
-        train_set, _ = torch.utils.data.random_split(
-            train_set, [train_size, len(train_set) - train_size]
-        )
     else:
         train_total = len(train_set)
-        train_size = int(train_total * 0.8)
+        train_size = int(train_total * 0.9)
         val_size = train_total - train_size
         train_set, val_set = torch.utils.data.random_split(
             train_set, [train_size, val_size]
