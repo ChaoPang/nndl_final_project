@@ -387,7 +387,8 @@ def create_training_datasets(
         data_label_path=args.training_label_path,
         is_training=True,
         is_superclass=args.is_superclass,
-        img_size=args.img_size
+        img_size=args.img_size,
+        multitask=args.multitask
     )
 
     # If the up sampler is enabled, we use the default 32 by 32 image for validation
