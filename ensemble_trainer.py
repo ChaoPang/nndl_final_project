@@ -5,7 +5,6 @@ import pickle
 import argparse
 import numpy as np
 import pandas as pd
-from scipy.special import softmax
 
 import torch.nn.functional
 import torch.optim as optim
@@ -253,7 +252,9 @@ def train_model(
 
     # Getting the numpy arrays out, we can do boosting on the data points
     train_x, train_y = convert_dataset_to_numpy(train_set)
+    # Sample with replacement
     n_train = len(train_x)
+
     w = np.ones(n_train) / n_train
 
     histories = []
@@ -467,7 +468,7 @@ def create_training_datasets(
         )
     else:
         train_total = len(train_set)
-        train_size = int(train_total * 0.9)
+        train_size = int(train_total * 0.8)
         val_size = train_total - train_size
         train_set, val_set = torch.utils.data.random_split(
             train_set, [train_size, val_size]
