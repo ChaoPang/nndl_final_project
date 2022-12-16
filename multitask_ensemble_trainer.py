@@ -28,6 +28,8 @@ def create_arg_parser():
     parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
     parser.add_argument('--epochs', default=100, type=int, help='Number of epochs')
     parser.add_argument('--dropout_rate', default=0.5, type=float, help='Dropout rate')
+    parser.add_argument('--train_percentage', default=0.8, type=float,
+                        help='training_percentage')
     parser.add_argument('--freeze_weight', action='store_true',
                         help='Whether or not we freeze the weights of the pretrained model')
     parser.add_argument('--deep_feature', action='store_true',
@@ -52,8 +54,7 @@ def create_arg_parser():
 
 
 def create_training_datasets(
-        args,
-        train_percentage=0.8
+        args
 ):
     train_set = ProjectDataSet(
         image_folder_path=args.training_data_path,
@@ -74,13 +75,13 @@ def create_training_datasets(
             multitask=args.multitask
         )
         # Randomly slice out data for training to inject more noise into the ensemble method
-        train_size = int(len(train_set) * train_percentage)
+        train_size = int(len(train_set) * args.train_percentage)
         train_set, _ = torch.utils.data.random_split(
             train_set, [train_size, len(train_set) - train_size]
         )
     else:
         train_total = len(train_set)
-        train_size = int(train_total * train_percentage)
+        train_size = int(train_total * args.train_percentage)
         val_size = train_total - train_size
         train_set, val_set = torch.utils.data.random_split(
             train_set, [train_size, val_size]
