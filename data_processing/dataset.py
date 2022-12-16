@@ -124,9 +124,6 @@ class ProjectDataSet(Dataset):
                 transforms.ToTensor()
             ])
 
-        if not self._is_superclass:
-            transformers.append(transforms.CenterCrop(self._img_size))
-
         if self._normalize:
             transformers.append(
                 transforms.Normalize((0.4707, 0.4431, 0.3708), (0.1577, 0.1587, 0.1783)))

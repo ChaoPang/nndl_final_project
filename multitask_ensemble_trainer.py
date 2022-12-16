@@ -284,7 +284,6 @@ def train_model(
     histories = []
     # Train each net individually
     for net in ensemble_models:
-
         train_set, val_set = create_training_datasets(args)
 
         train_dataloader = DataLoader(
@@ -297,14 +296,8 @@ def train_model(
 
         net = net.to(get_device())
 
-        if args.is_superclass:
-            # Empirical evidence
-            weight_decay = random.uniform(1e-3, 1e-4)
-            epsilon = random.uniform(0.01, 0.1)
-        else:
-            weight_decay = random.uniform(0.5e-3, 1.5e-3)
-            epsilon = random.uniform(0.05, 0.15)
-
+        weight_decay = random.uniform(0.5e-4, 1.5e-3)
+        epsilon = random.uniform(0.05, 0.15)
         gamma = random.uniform(0.85, 0.95)
 
         superclass_criterion = nn.CrossEntropyLoss()
