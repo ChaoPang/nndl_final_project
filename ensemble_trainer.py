@@ -197,7 +197,7 @@ def predict(
         test_set, batch_size=args.batch_size, num_workers=4
     )
 
-    predictions = []
+    all_predictions = []
     labels = []
     correct = 0
     total = 0
@@ -218,14 +218,17 @@ def predict(
 
             average_output = torch.stack(outputs, dim=1).sum(dim=1)
             predicted = torch.argmax(average_output, dim=-1)
-            predictions.append(predicted.detach().cpu().numpy())
+            all_predictions.append(predicted.detach().cpu().numpy())
+
+            # Add labels to the dataframe if available
             if args.test_label:
                 labels.append(targets.detach().cpu().numpy())
                 total += targets.size(0)
                 correct += predicted.detach().cpu().eq(targets).sum().item()
                 progress_bar(batch_idx, len(data_loader), 'Acc: %.3f%% (%d/%d)'
                              % (100. * correct / total, correct, total))
-    predictions_pd = pd.DataFrame(np.hstack(predictions), columns=['predictions'])
+
+    predictions_pd = pd.DataFrame(np.hstack(all_predictions), columns=['predictions'])
     predictions_pd['prediction_class'] = map_idx_to_superclass(predictions_pd.predictions)
     predictions_pd['prediction_subclass'] = map_idx_to_subclass(predictions_pd.predictions)
 
@@ -394,7 +397,7 @@ def main(args):
                 deep_feature=args.deep_feature,
                 freeze_weight=args.freeze_weight,
                 name=f'FinetuneEfficientNetV2_{i}'
-            ) for i in range(5)
+            ) for i in range(10)
         ]
 
     alphas, histories, w_s = train_model(
