@@ -338,6 +338,13 @@ class FinetuneEfficientNetV2MultiTask(nn.Module):
             *create_head_classifier(num_classes, dropout_rate))
         self._subclass_classifier = nn.Sequential(
             *create_head_classifier(num_sub_classes, dropout_rate))
+        self._super_classifier_2 = nn.Sequential(
+            nn.ReLU(),
+            nn.Dropout(dropout_rate),
+            nn.Linear(
+                num_sub_classes, num_classes
+            )
+        )
         self._name = name if name else 'FinetuneEfficientNetV2MultiTask'
 
     def forward(self, x: Tensor) -> Tensor:
@@ -348,7 +355,8 @@ class FinetuneEfficientNetV2MultiTask(nn.Module):
         )
         superclass_out = self._super_classifier(
             features
-        )
+        ) + self._super_classifier_2(subclass_out)
+
         return superclass_out, subclass_out
 
     @property
