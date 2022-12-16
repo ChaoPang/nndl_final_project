@@ -42,6 +42,8 @@ def create_arg_parser():
                         help='Super class or sub class predictions')
     parser.add_argument('--num_classes', type=int, default=3, help='num_classes')
     parser.add_argument('--batch_size', type=int, default=128, help='batch_size')
+    parser.add_argument('--training_percentage', default=0.8, type=float,
+                        help='Training Percentage')
     parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
     parser.add_argument('--epochs', default=100, type=int, help='Number of epochs')
     parser.add_argument('--dropout_rate', default=0.5, type=float, help='Dropout rate')
@@ -196,7 +198,7 @@ def predict(
         test_set, batch_size=args.batch_size, num_workers=4
     )
 
-    all_predictions = []
+    predictions = []
     labels = []
     correct = 0
     total = 0
@@ -211,13 +213,12 @@ def predict(
             for net, alpha in zip(ensemble_models, alphas):
                 net.to(get_device())
                 net.eval()
-                predictions = net(inputs.to(get_device()))
-                outputs.append(predictions * alpha)
+                outputs.append(net(inputs.to(get_device())) * alpha)
                 net.to('cpu')
 
             average_output = torch.stack(outputs, dim=1).sum(dim=1)
             predicted = torch.argmax(average_output, dim=-1)
-            all_predictions.append(predicted.detach().cpu().numpy())
+            predictions.append(predicted.detach().cpu().numpy())
 
             # Add labels to the dataframe if available
             if args.test_label:
@@ -227,7 +228,7 @@ def predict(
                 progress_bar(batch_idx, len(data_loader), 'Acc: %.3f%% (%d/%d)'
                              % (100. * correct / total, correct, total))
 
-    predictions_pd = pd.DataFrame(np.hstack(all_predictions), columns=['predictions'])
+    predictions_pd = pd.DataFrame(np.hstack(predictions), columns=['predictions'])
     predictions_pd['prediction_class'] = map_idx_to_superclass(predictions_pd.predictions)
     predictions_pd['prediction_subclass'] = map_idx_to_subclass(predictions_pd.predictions)
 
@@ -244,6 +245,12 @@ def train_model(
 ):
     train_set, val_set = create_training_datasets(args)
 
+    train_dataloader = DataLoader(
+        train_set,
+        batch_size=args.batch_size,
+        num_workers=4
+    )
+
     val_dataloader = DataLoader(
         val_set,
         batch_size=args.batch_size,
@@ -254,6 +261,7 @@ def train_model(
     train_x, train_y = convert_dataset_to_numpy(train_set)
     # Sample with replacement
     n_train = len(train_x)
+    n_of_samples = len(train_set) + len(val_set)
 
     w = np.ones(n_train) / n_train
 
@@ -266,12 +274,12 @@ def train_model(
         # Sample indices from the training data
         sampled_index = np.random.choice(
             list(range(n_train)),
-            size=n_train,
+            size=n_of_samples,
             replace=True,
             p=w
         )
 
-        train_dataloader = DataLoader(
+        sampled_dataloader = DataLoader(
             TensorDataset(
                 torch.Tensor(train_x[sampled_index]),
                 torch.Tensor(train_y[sampled_index]).to(torch.long)
@@ -304,7 +312,7 @@ def train_model(
 
         history = training_loop(
             net,
-            train_dataloader,
+            sampled_dataloader,
             val_dataloader,
             criterion,
             optimizer,
@@ -321,7 +329,7 @@ def train_model(
             map_location=get_device()
         )
 
-        # Let's calculate the error for this classifier
+        # Let's calculate the error for this classifier over the entire training data
         all_misses = []
         with torch.no_grad():
             for batch_idx, (inputs, targets) in enumerate(train_dataloader):
@@ -468,7 +476,7 @@ def create_training_datasets(
         )
     else:
         train_total = len(train_set)
-        train_size = int(train_total * 0.8)
+        train_size = int(train_total * args.training_percentage)
         val_size = train_total - train_size
         train_set, val_set = torch.utils.data.random_split(
             train_set, [train_size, val_size]
