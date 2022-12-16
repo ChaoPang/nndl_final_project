@@ -255,6 +255,7 @@ def train_model(
 
     histories = []
     alphas = []
+    w_s = [w]
     # Train each net individually
     for net in ensemble_models:
 
@@ -336,11 +337,12 @@ def train_model(
         w = np.multiply(w, np.exp(all_misses.astype(float) * alpha_m))
         # w needs to be a valid probability distribution
         w = w / w.sum()
+        w_s.append(w)
 
         history['name'] = net.name
         histories.append(history)
 
-    return alphas, histories
+    return alphas, histories, w_s
 
 
 def get_device():
@@ -395,7 +397,7 @@ def main(args):
             ) for i in range(5)
         ]
 
-    alphas, histories = train_model(
+    alphas, histories, w_s = train_model(
         ensemble_models,
         args,
         up_sampler
@@ -413,6 +415,10 @@ def main(args):
     )
     for history in histories:
         plot_training_loss(history, os.path.join(args.checkpoint_path, history['name']))
+
+    # Save
+    with open(os.path.join(args.checkpoint_path, 'w_s.pickle'), 'wb') as f:
+        pickle.dump(w_s, f)
 
 
 def plot_training_loss(history, checkpoint_path):
