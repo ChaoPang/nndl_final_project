@@ -32,8 +32,6 @@ def create_arg_parser():
     parser.add_argument('--deep_feature', action='store_true',
                         help='Whether or not extract the deep feature')
     parser.add_argument('--multitask', action='store_true')
-    parser.add_argument('--mix_model', action='store_true',
-                        help='Whether or not we use mixed ensemble models')
     parser.add_argument('--early_stopping_patience', default=10, type=int,
                         help='Early stopping patience')
     parser.add_argument('--img_size', default=8, type=int, help='Image Size')
@@ -63,7 +61,8 @@ def train(
     net.train()
 
     train_loss = 0
-    correct = 0
+    superclass_correct = 0
+    subclass_correct = 0
     total = 0
 
     for batch_idx, (inputs, superclass_targets, subclass_targets) in enumerate(train_loader):
@@ -84,16 +83,28 @@ def train(
 
         train_loss += loss.item()
         total += subclass_targets.size(0)
+
+        _, superclass_predicted = superclass_outputs.max(1)
+        superclass_correct += superclass_predicted.eq(superclass_targets).sum().item()
+
         _, subclass_predicted = subclass_outputs.max(1)
-        correct += subclass_predicted.eq(subclass_targets).sum().item()
+        subclass_correct += subclass_predicted.eq(subclass_targets).sum().item()
 
-        progress_bar(batch_idx, len(train_loader),
-                     'Superclass Loss: %.3f | Subclass Loss: %.3f | Subclass Acc: %.3f%% (%d/%d)'
-                     % (superclass_loss, subclass_loss, 100. * correct / total, correct, total))
+        progress_bar(
+            batch_idx, len(train_loader),
+            'Superclass Train Loss: %.3f | Subclass Train Loss: %.3f | '
+            'Superclass Train Acc: %.3f%% (%d/%d) | Subclass Train Acc: %.3f%% (%d/%d)'
+            % (
+                superclass_loss,
+                subclass_loss,
+                100. * superclass_correct / total, superclass_correct, total,
+                100. * subclass_correct / total, subclass_correct, total,
+            )
+        )
 
-    acc = 100. * correct / total
+    subclass_acc = 100. * subclass_correct / total
     train_average_loss = train_loss / total
-    return train_average_loss, acc
+    return train_average_loss, subclass_acc
 
 
 def validate(
@@ -103,7 +114,8 @@ def validate(
 ):
     net.eval()
     val_loss = 0
-    correct = 0
+    subclass_correct = 0
+    superclass_correct = 0
     total = 0
 
     with torch.no_grad():
@@ -120,19 +132,27 @@ def validate(
             loss = superclass_loss + subclass_loss
             val_loss += loss.item()
 
-            _, subclass_predictions = subclass_outputs.max(1)
             total += subclass_outputs.size(0)
-            correct += subclass_predictions.eq(subclass_targets).sum().item()
+            _, subclass_predictions = subclass_outputs.max(1)
+            subclass_correct += subclass_predictions.eq(subclass_targets).sum().item()
+            _, superclass_predictions = superclass_outputs.max(1)
+            superclass_correct += superclass_predictions.eq(superclass_targets).sum().item()
 
             progress_bar(
                 batch_idx, len(val_loader),
-                'Superclass Loss: %.3f | Subclass Loss: %.3f | Subclass Acc: %.3f%% (%d/%d)'
-                % (superclass_loss, subclass_loss, 100. * correct / total, correct, total)
+                'Superclass Val Loss: %.3f | Subclass Val Loss: %.3f | '
+                'Superclass val Acc: %.3f%% (%d/%d) | Subclass Val Acc: %.3f%% (%d/%d)'
+                % (
+                    superclass_loss,
+                    subclass_loss,
+                    100. * superclass_correct / total, superclass_correct, total,
+                    100. * subclass_correct / total, subclass_correct, total,
+                )
             )
 
-    acc = 100. * correct / total
+    subclass_acc = 100. * subclass_correct / total
     val_average_loss = val_loss / total
-    return val_average_loss, acc
+    return val_average_loss, subclass_acc
 
 
 def predict(
@@ -151,7 +171,8 @@ def predict(
         test_set, batch_size=args.batch_size, num_workers=4
     )
 
-    predictions = []
+    superclass_predictions = []
+    subclass_predictions = []
     superclass_labels = []
     subclass_labels = []
     subclass_correct = 0
@@ -173,21 +194,19 @@ def predict(
             average_superclass_output = torch.stack(superclass_outputs, dim=1).mean(dim=1)
             average_subclass_output = torch.stack(subclass_outputs, dim=1).mean(dim=1)
 
-            superclass_predictions = torch.argmax(average_superclass_output, dim=-1)
-            subclass_predictions = torch.argmax(average_subclass_output, dim=-1)
+            superclass_prediction_batch = torch.argmax(average_superclass_output, dim=-1)
+            subclass_prediction_batch = torch.argmax(average_subclass_output, dim=-1)
 
-            predictions.append(
-                (superclass_predictions.detach().cpu().numpy(),
-                 subclass_predictions.detach().cpu().numpy())
-            )
+            superclass_predictions.append(superclass_prediction_batch.detach().cpu().numpy())
+            subclass_predictions.append(subclass_prediction_batch.detach().cpu().numpy())
 
             superclass_labels.append(superclass_targets.detach().cpu().numpy())
             subclass_labels.append(subclass_targets.detach().cpu().numpy())
 
             total += subclass_targets.size(0)
-            superclass_correct += superclass_predictions.detach().cpu().eq(
+            superclass_correct += superclass_prediction_batch.detach().cpu().eq(
                 superclass_targets).sum().item()
-            subclass_correct += subclass_predictions.detach().cpu().eq(
+            subclass_correct += subclass_prediction_batch.detach().cpu().eq(
                 subclass_targets).sum().item()
 
             progress_bar(batch_idx, len(data_loader),
@@ -196,9 +215,10 @@ def predict(
                             100. * subclass_correct / total, subclass_correct, total))
 
         predictions_pd = pd.DataFrame(
-            np.vstack(predictions).T,
-            columns=['superclass_prediction', 'subclass_prediction']
+            np.hstack(superclass_predictions),
+            columns=['superclass_prediction']
         )
+        predictions_pd['subclass_prediction'] = np.hstack(subclass_predictions)
         predictions_pd['prediction_class'] = map_idx_to_superclass(
             predictions_pd.superclass_prediction)
         predictions_pd['prediction_subclass'] = map_idx_to_subclass(
@@ -277,7 +297,6 @@ def train_model(
 
 
 def main(args):
-
     ensemble_models = [
         FinetuneEfficientNetV2MultiTask(
             num_classes=3,
