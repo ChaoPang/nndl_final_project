@@ -47,15 +47,56 @@ def create_arg_parser():
                         help='Using CIFAR data to test the model')
     parser.add_argument('--test_label', action='store_true',
                         help='Indicate whether the test label is available')
-
     return parser
+
+
+def create_training_datasets(
+        args,
+        train_percentage=0.8
+):
+    train_set = ProjectDataSet(
+        image_folder_path=args.training_data_path,
+        data_label_path=args.training_label_path,
+        is_training=True,
+        is_superclass=args.is_superclass,
+        img_size=args.img_size,
+        multitask=args.multitask
+    )
+
+    # If the up sampler is enabled, we use the default 32 by 32 image for validation
+    # Use the CIFAR data as the external validation set
+    if args.external_validation:
+        val_set = CifarValidationDataset(
+            cifar_data_folder=args.val_data_path,
+            download=True,
+            img_size=args.img_size,
+            multitask=args.multitask
+        )
+        # Randomly slice out data for training to inject more noise into the ensemble method
+        train_size = int(len(train_set) * train_percentage)
+        train_set, _ = torch.utils.data.random_split(
+            train_set, [train_size, len(train_set) - train_size]
+        )
+    else:
+        train_total = len(train_set)
+        train_size = int(train_total * train_percentage)
+        val_size = train_total - train_size
+        train_set, val_set = torch.utils.data.random_split(
+            train_set, [train_size, val_size]
+        )
+
+    print(f'train_set size: {len(train_set)}')
+    print(f'val_set size: {len(val_set)}')
+
+    return train_set, val_set
 
 
 # Training
 def train(
         net,
         train_loader,
-        loss_functions,
+        superclass_criterion,
+        subclass_criterion,
         optimizer
 ):
     net.train()
@@ -73,8 +114,8 @@ def train(
         optimizer.zero_grad()
 
         superclass_outputs, subclass_outputs = net(inputs)
-        superclass_loss = loss_functions[0](superclass_outputs, superclass_targets)
-        subclass_loss = loss_functions[1](subclass_outputs, subclass_targets)
+        superclass_loss = superclass_criterion(superclass_outputs, superclass_targets)
+        subclass_loss = subclass_criterion(subclass_outputs, subclass_targets)
 
         loss = superclass_loss + subclass_loss
 
@@ -110,7 +151,9 @@ def train(
 def validate(
         net,
         val_loader,
-        loss_functions
+        superclass_criterion,
+        subclass_criterion,
+        external_validation
 ):
     net.eval()
     val_loss = 0
@@ -125,18 +168,25 @@ def validate(
             subclass_targets = subclass_targets.to(get_device())
 
             superclass_outputs, subclass_outputs = net(inputs)
+            superclass_loss = superclass_criterion(superclass_outputs, superclass_targets)
 
-            superclass_loss = loss_functions[0](superclass_outputs, superclass_targets)
-            subclass_loss = loss_functions[1](subclass_outputs, subclass_targets)
+            loss = superclass_loss
+            total += superclass_outputs.size(0)
 
-            loss = superclass_loss + subclass_loss
-            val_loss += loss.item()
-
-            total += subclass_outputs.size(0)
-            _, subclass_predictions = subclass_outputs.max(1)
-            subclass_correct += subclass_predictions.eq(subclass_targets).sum().item()
             _, superclass_predictions = superclass_outputs.max(1)
             superclass_correct += superclass_predictions.eq(superclass_targets).sum().item()
+
+            # In case of external validations, we don't have labels for the subclass prediction
+            # Let's only focus on the super class prediction
+            if not external_validation:
+                subclass_loss = subclass_criterion(subclass_outputs, subclass_targets)
+                loss = loss + subclass_loss
+                _, subclass_predictions = subclass_outputs.max(1)
+                subclass_correct += subclass_predictions.eq(subclass_targets).sum().item()
+            else:
+                subclass_loss = 0
+
+            val_loss += loss.item()
 
             progress_bar(
                 batch_idx, len(val_loader),
@@ -257,11 +307,8 @@ def train_model(
 
         gamma = random.uniform(0.85, 0.95)
 
-        loss_functions = [
-            nn.CrossEntropyLoss(),
-            nn.CrossEntropyLoss()
-        ]
-
+        superclass_criterion = nn.CrossEntropyLoss()
+        subclass_criterion = nn.CrossEntropyLoss()
         optimizer = optim.Adam(
             net.parameters(), lr=args.lr, weight_decay=weight_decay, eps=epsilon
         )
@@ -275,12 +322,14 @@ def train_model(
             net,
             train_dataloader,
             val_dataloader,
-            loss_functions,
+            superclass_criterion,
+            subclass_criterion,
             optimizer,
             scheduler,
             args.epochs,
             args.early_stopping_patience,
-            args.checkpoint_path
+            args.checkpoint_path,
+            args.external_validation
         )
 
         # Load the best model according to the val loss
@@ -328,12 +377,14 @@ def training_loop(
         net,
         train_dataloader,
         val_dataloader,
-        loss_functions,
+        superclass_criterion,
+        subclass_criterion,
         optimizer,
         scheduler,
         epochs,
         early_stopping_patience,
-        checkpoint_path
+        checkpoint_path,
+        external_validation
 ):
     early_stopping_counter = 0
     best_val_loss = 1e6
@@ -345,14 +396,17 @@ def training_loop(
         train_loss, train_acc = train(
             net,
             train_dataloader,
-            loss_functions,
+            superclass_criterion,
+            subclass_criterion,
             optimizer
         )
 
         val_loss, val_acc = validate(
             net,
             val_dataloader,
-            loss_functions
+            superclass_criterion,
+            subclass_criterion,
+            external_validation
         )
         scheduler.step()
 

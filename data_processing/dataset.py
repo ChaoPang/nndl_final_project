@@ -165,17 +165,22 @@ class CifarValidationDataset(Dataset):
             self,
             img_size=8,
             cifar_data_folder='./data',
-            download=True
+            download=True,
+            multitask=False
     ):
         self._img_size = img_size
         self._cifar_data_folder = cifar_data_folder
         self._download = download
+        self._multitask = multitask
         self._cifar_dataset = torch.utils.data.ConcatDataset([
             self._get_cifar10_dataset(),
             self._get_cifar100_dataset()
         ])
 
     def __getitem__(self, idx):
+        if self._multitask:
+            img, target = self._cifar_dataset[idx]
+            return img, target, 0
         return self._cifar_dataset[idx]
 
     def __len__(self):
