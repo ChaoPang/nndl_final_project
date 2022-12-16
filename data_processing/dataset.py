@@ -210,10 +210,10 @@ class CifarValidationDataset(Dataset):
         dog_data = np.concatenate(
             [x_train[np.squeeze(y_train == 5)], x_test[np.squeeze(y_test == 5)]])
 
-        dog_data = dog_data[np.random.choice(len(dog_data), size=4000, replace=False)]
-        bird_data = bird_data[np.random.choice(len(bird_data), size=4000, replace=False)]
+        dog_data = dog_data[np.random.choice(len(dog_data), size=3000, replace=False)]
+        bird_data = bird_data[np.random.choice(len(bird_data), size=3000, replace=False)]
 
-        y = np.repeat([[0], [1]], repeats=[4000], axis=-1).flatten()
+        y = np.repeat([[0], [1]], repeats=[3000], axis=-1).flatten()
 
         cifar10_train.data = np.concatenate([bird_data, dog_data])
         cifar10_train.targets = y

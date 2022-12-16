@@ -22,6 +22,7 @@ def create_arg_parser():
     parser = argparse.ArgumentParser(description='PyTorch NNDL image classification challenge')
     parser.add_argument('--is_superclass', action='store_true',
                         help='Super class or sub class predictions')
+    parser.add_argument('--num_of_classifiers', type=int, default=5, help='num_of_classifiers')
     parser.add_argument('--num_classes', type=int, default=3, help='num_classes')
     parser.add_argument('--batch_size', type=int, default=128, help='batch_size')
     parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
@@ -296,8 +297,9 @@ def train_model(
 
         net = net.to(get_device())
 
-        weight_decay = random.uniform(0.5e-4, 1.5e-3)
-        epsilon = random.uniform(0.05, 0.15)
+        weight_decay = random.uniform(0.5e-4, 1.5e-4)
+        epsilon = random.uniform(0.01, 0.1)
+
         gamma = random.uniform(0.85, 0.95)
 
         superclass_criterion = nn.CrossEntropyLoss()
@@ -346,7 +348,7 @@ def main(args):
             deep_feature=args.deep_feature,
             freeze_weight=args.freeze_weight,
             name=f'FinetuneEfficientNetV2_{i}'
-        ) for i in range(1)
+        ) for i in range(args.num_of_classifiers)
     ]
 
     histories = train_model(
