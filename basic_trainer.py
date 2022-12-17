@@ -9,7 +9,7 @@ import torch.nn.functional
 import torch.optim as optim
 from torchvision import transforms
 from torch.utils.data import DataLoader
-from models.resnet import ResNet152
+from models.resnet import ResNet101
 from data_processing.dataset import ProjectDataSet, CifarValidationDataset, get_data_normalize
 from models.finetune_pretrained import *
 from utils.class_mapping import IDX_TO_SUPERCLASS_DICT, IDX_TO_SUBCLASS_MAPPING
@@ -320,7 +320,7 @@ def main(args):
     else:
         up_sampler = None
 
-    net = ResNet152(
+    net = ResNet101(
         num_classes=args.num_classes
     )
 
