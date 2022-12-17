@@ -1,15 +1,10 @@
-from enum import Enum
 import torch.nn.functional
 from ensemble_trainer import *
+from models.finetune_pretrained import PretrainedModel
 
 MODEL_NAME = 'best_model.pt'
 
 sys.setrecursionlimit(10000)
-
-
-class PretrainedModel(Enum):
-    FinetuneEfficientNetV2 = 'FinetuneEfficientNetV2'
-    FinetuneRegNet = 'FinetuneRegNet'
 
 
 def map_idx_to_superclass(
@@ -29,12 +24,14 @@ def create_arg_parser():
     parser.add_argument('--is_superclass', action='store_true',
                         help='Super class or sub class predictions')
     parser.add_argument('--num_of_classifiers', type=int, default=5, help='num_of_classifiers')
-    parser.add_argument('--num_classes', type=int, default=3, help='num_classes')
+    parser.add_argument('--num_classes', type=int, default=3,
+                        help='The number of superclass categories')
+    parser.add_argument('--num_subclasses', type=int, default=90,
+                        help='The number of subclasse categories')
     parser.add_argument('--batch_size', type=int, default=128, help='batch_size')
     parser.add_argument(
         '--pretrained_model',
         action='store',
-        nargs='+',
         choices=[e.value for e in PretrainedModel],
         default=PretrainedModel.FinetuneEfficientNetV2.value
     )
@@ -47,7 +44,6 @@ def create_arg_parser():
                         help='Whether or not we freeze the weights of the pretrained model')
     parser.add_argument('--deep_feature', action='store_true',
                         help='Whether or not extract the deep feature')
-    parser.add_argument('--multitask', action='store_true')
     parser.add_argument('--early_stopping_patience', default=10, type=int,
                         help='Early stopping patience')
     parser.add_argument('--img_size', default=8, type=int, help='Image Size')
@@ -56,13 +52,11 @@ def create_arg_parser():
     parser.add_argument('--training_label_path', required=True, help='the path to training label')
     parser.add_argument('--test_data_path', required=True,
                         help='input_folder containing the images')
-    parser.add_argument('--val_data_path', required=True,
-                        help='input_folder containing the CIFAR images')
     parser.add_argument('--checkpoint_path', required=True, help='checkpoint_path for the model')
     parser.add_argument('--external_validation', action='store_true',
                         help='Using CIFAR data to test the model')
-    parser.add_argument('--test_label', action='store_true',
-                        help='Indicate whether the test label is available')
+    parser.add_argument('--val_data_path', required='--external_validation' in sys.argv,
+                        help='input_folder containing the CIFAR images')
     return parser
 
 
@@ -75,7 +69,7 @@ def create_training_datasets(
         is_training=True,
         is_superclass=args.is_superclass,
         img_size=args.img_size,
-        multitask=args.multitask
+        multitask=True
     )
 
     # If the up sampler is enabled, we use the default 32 by 32 image for validation
@@ -85,7 +79,7 @@ def create_training_datasets(
             cifar_data_folder=args.val_data_path,
             download=True,
             img_size=args.img_size,
-            multitask=args.multitask
+            multitask=True
         )
         # Randomly slice out data for training to inject more noise into the ensemble method
         train_size = int(len(train_set) * args.train_percentage)
@@ -229,7 +223,7 @@ def predict(
         is_training=False,
         is_superclass=args.is_superclass,
         img_size=args.img_size,
-        multitask=args.multitask
+        multitask=True
     )
 
     data_loader = DataLoader(
@@ -356,9 +350,11 @@ def train_model(
 
 def main(args):
     ensemble_models = [
-        FinetuneEfficientNetV2MultiTask(
-            num_classes=3,
-            num_sub_classes=90,
+        create_multitask_trainer(
+            num_classes=args.num_classes,
+            num_subclasses=args.num_subclasses,
+            pretrained_model=PretrainedModel(args.pretrained_model),
+            dropout_rate=args.dropout_rate,
             deep_feature=args.deep_feature,
             freeze_weight=args.freeze_weight,
             name=f'FinetuneEfficientNetV2_{i}'

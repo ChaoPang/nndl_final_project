@@ -1,10 +1,15 @@
 from abc import abstractmethod
+from enum import Enum
 
-import torch
 from torch import nn, Tensor
 from torchvision import models
 import torch.nn.functional as F
 from torchvision.models.feature_extraction import create_feature_extractor
+
+
+class PretrainedModel(Enum):
+    FinetuneEfficientNetV2 = 'FinetuneEfficientNetV2'
+    FinetuneRegNet = 'FinetuneRegNet'
 
 
 class PretrainedFeatureExtractor(nn.Module):
@@ -316,29 +321,57 @@ class FinetuneEfficientNetV2(nn.Sequential):
         return self._name
 
 
-class FinetuneEfficientNetV2MultiTask(nn.Module):
+def create_multitask_trainer(
+        num_classes,
+        num_subclasses,
+        pretrained_model: PretrainedModel,
+        dropout_rate=0.5,
+        freeze_weight=False,
+        deep_feature=False,
+        name=None
+) -> nn.Module:
+    if pretrained_model == PretrainedModel.FinetuneEfficientNetV2:
+        finetune_extractor_class = FinetuneEfficientNetV2FeatureExtractor
+    elif pretrained_model == PretrainedModel.FinetuneRegNet:
+        finetune_extractor_class = FinetuneRegNetFeatureExtractor
+    else:
+        raise RuntimeError(f'We only support FinetuneEfficientNetV2 and FinetuneRegNet')
+
+    return FinetuneWithMultiTask(
+        num_classes=num_classes,
+        num_subclasses=num_subclasses,
+        finetune_extractor_class=finetune_extractor_class,
+        dropout_rate=dropout_rate,
+        freeze_weight=freeze_weight,
+        deep_feature=deep_feature,
+        name=name
+    )
+
+
+class FinetuneWithMultiTask(nn.Module):
 
     def __init__(
             self,
-            num_classes,
-            num_sub_classes,
-            dropout_rate=0.5,
-            freeze_weight=False,
-            deep_feature=False,
-            name=None
+            num_classes: int,
+            num_subclasses: int,
+            finetune_extractor_class: PretrainedFeatureExtractor,
+            dropout_rate: float = 0.5,
+            freeze_weight: bool = False,
+            deep_feature: bool = False,
+            name: str = None
     ):
-        super(FinetuneEfficientNetV2MultiTask, self).__init__(
+        super(FinetuneWithMultiTask, self).__init__(
 
         )
-        self._feature_extractor = FinetuneEfficientNetV2FeatureExtractor(
+        self._feature_extractor = finetune_extractor_class(
             freeze_weight=freeze_weight,
             deep_feature=deep_feature
         )
         self._super_classifier = nn.Sequential(
             *create_head_classifier(num_classes, dropout_rate))
         self._subclass_classifier = nn.Sequential(
-            *create_head_classifier(num_sub_classes, dropout_rate))
-        self._name = name if name else 'FinetuneEfficientNetV2MultiTask'
+            *create_head_classifier(num_subclasses, dropout_rate))
+        self._name = name if name else finetune_extractor_class.__name__
 
     def forward(self, x: Tensor) -> Tensor:
         # This returns a named feature
@@ -378,73 +411,3 @@ class FinetuneEfficientNetB7(nn.Sequential):
     @property
     def name(self):
         return self._name
-
-
-class FinetuneEnsembleModelAbstract(nn.Module):
-    def __init__(
-            self,
-            num_classes,
-            device,
-            dropout_rate=0.5,
-            freeze_weight=False,
-            deep_feature=False
-    ):
-        super(FinetuneEnsembleModelAbstract, self).__init__()
-        self._feature_extractors = self._get_feature_extractors(
-            device,
-            freeze_weight,
-            deep_feature
-        )
-
-        num_of_features = PretrainedFeatureExtractor.output_num_features * len(
-            self._feature_extractors)
-
-        self._classifier = nn.Sequential(
-            nn.Linear(num_of_features, 256),
-            nn.ReLU(),
-            nn.Dropout(dropout_rate),
-            nn.Linear(256, 128),
-            nn.ReLU(),
-            nn.Dropout(dropout_rate),
-            nn.Linear(128, num_classes),
-        )
-
-    @abstractmethod
-    def _get_feature_extractors(self, device, freeze_weight, deep_feature):
-        pass
-
-    def forward(self, x: Tensor) -> Tensor:
-        ensemble_features = []
-        for feature_extractor in self._feature_extractors:
-            ensemble_features.append(feature_extractor(x))
-        ensemble_features = torch.concat(ensemble_features, dim=-1)
-        out = self._classifier(ensemble_features)
-        return out
-
-
-class FinetuneEnsembleModel(FinetuneEnsembleModelAbstract):
-    def _get_feature_extractors(self, device, freeze_weight, deep_feature):
-        return [
-            FinetuneEfficientNetV2FeatureExtractor(
-                deep_feature=deep_feature,
-                freeze_weight=freeze_weight
-            ).to(device),
-            FinetuneRegNetFeatureExtractor(
-                deep_feature=deep_feature,
-                freeze_weight=freeze_weight
-            ).to(device)
-        ]
-
-
-class FinetuneEfficientNetEnsembleModel(FinetuneEnsembleModelAbstract):
-    def _get_feature_extractors(self, device, freeze_weight, deep_feature):
-        return [
-            FinetuneEfficientNetV2FeatureExtractor(
-                deep_feature=deep_feature,
-                freeze_weight=freeze_weight
-            ).to(device),
-            FinetuneEfficientNetB7FeatureExtractor(
-                deep_feature=deep_feature,
-                freeze_weight=freeze_weight
-            ).to(device)
-        ]
