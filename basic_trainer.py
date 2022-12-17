@@ -9,7 +9,7 @@ import torch.nn.functional
 import torch.optim as optim
 from torchvision import transforms
 from torch.utils.data import DataLoader
-
+from models.resnet import ResNet152
 from data_processing.dataset import ProjectDataSet, CifarValidationDataset, get_data_normalize
 from models.finetune_pretrained import *
 from utils.class_mapping import IDX_TO_SUPERCLASS_DICT, IDX_TO_SUBCLASS_MAPPING
@@ -320,17 +320,10 @@ def main(args):
     else:
         up_sampler = None
 
-    # net = FinetuneResnet152(num_classes=3, deep_feature=args.deep_feature)
-    # net = FinetuneRegNet(num_classes=3, deep_feature=args.deep_feature)
-    net = FinetuneEfficientNetV2(num_classes=args.num_classes, deep_feature=args.deep_feature)
-    # net = VisionTransformer(img_size=args.img_size)
-    # net = FinetuneEfficientNetEnsembleModel(
-    #     num_classes=3,
-    #     dropout_rate=args.dropout_rate,
-    #     freeze_weight=args.freeze_weight,
-    #     device=device,
-    #     deep_feature=args.deep_feature
-    # )
+    net = ResNet152(
+        num_classes=args.num_classes
+    )
+
     net = net.to(device)
 
     history = train_model(net, train_set, val_set, args, device, up_sampler)
