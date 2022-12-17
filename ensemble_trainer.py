@@ -12,8 +12,8 @@ from torch.utils.data import DataLoader
 
 from data_processing.dataset import ProjectDataSet, CifarValidationDataset
 from models.finetune_pretrained import *
+from models.resnet import *
 from utils.class_mapping import IDX_TO_SUPERCLASS_DICT, IDX_TO_SUBCLASS_MAPPING
-
 from utils.utils import progress_bar
 
 import matplotlib.pyplot as plt
@@ -340,12 +340,7 @@ def main(args):
         ]
     else:
         ensemble_models = [
-            FinetuneEfficientNetV2(
-                num_classes=args.num_classes,
-                deep_feature=args.deep_feature,
-                freeze_weight=args.freeze_weight,
-                name=f'FinetuneEfficientNetV2_{i}'
-            ) for i in range(5)
+            ResNet152(args.num_classes)
         ]
 
     histories = train_model(
@@ -388,7 +383,7 @@ def create_training_datasets(
         is_training=True,
         is_superclass=args.is_superclass,
         img_size=args.img_size,
-        multitask=args.multitask
+        normalize=True
     )
 
     # If the up sampler is enabled, we use the default 32 by 32 image for validation
