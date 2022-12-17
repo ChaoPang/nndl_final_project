@@ -114,7 +114,7 @@ class ProjectDataSet(Dataset):
         if self._is_training:
             transformers.extend([
                 transforms.Resize(self._img_size),
-                transforms.RandomCrop(self._img_size, padding=self._img_size // 4),
+                transforms.RandomCrop(self._img_size, padding=2),
                 transforms.RandomHorizontalFlip(),
                 transforms.ToTensor()
             ])
