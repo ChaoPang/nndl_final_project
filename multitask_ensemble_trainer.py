@@ -350,6 +350,14 @@ def main(args):
             freeze_weight=args.freeze_weight,
             name=f'FinetuneEfficientNetV2_{i}'
         ) for i in range(args.num_of_classifiers)
+    ] + [
+        FinetuneRegnetMultiTask(
+            num_classes=3,
+            num_sub_classes=90,
+            deep_feature=args.deep_feature,
+            freeze_weight=args.freeze_weight,
+            name=f'FinetuneEfficientNetV2_{i}'
+        ) for i in range(args.num_of_classifiers)
     ]
 
     histories = train_model(

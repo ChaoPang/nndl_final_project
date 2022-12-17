@@ -316,6 +316,47 @@ class FinetuneEfficientNetV2(nn.Sequential):
         return self._name
 
 
+class FinetuneRegnetMultiTask(nn.Module):
+
+    def __init__(
+            self,
+            num_classes,
+            num_sub_classes,
+            dropout_rate=0.5,
+            freeze_weight=False,
+            deep_feature=False,
+            name=None
+    ):
+        super(FinetuneRegnetMultiTask, self).__init__(
+
+        )
+        self._feature_extractor = FinetuneRegNetFeatureExtractor(
+            freeze_weight=freeze_weight,
+            deep_feature=deep_feature
+        )
+        self._super_classifier = nn.Sequential(
+            *create_head_classifier(num_classes, dropout_rate))
+        self._subclass_classifier = nn.Sequential(
+            *create_head_classifier(num_sub_classes, dropout_rate))
+        self._name = name if name else 'FinetuneRegnetMultiTask'
+
+    def forward(self, x: Tensor) -> Tensor:
+        # This returns a named feature
+        features = self._feature_extractor(x)
+        subclass_out = self._subclass_classifier(
+            features
+        )
+        superclass_out = self._super_classifier(
+            features
+        )
+
+        return superclass_out, subclass_out
+
+    @property
+    def name(self):
+        return self._name
+
+
 class FinetuneEfficientNetV2MultiTask(nn.Module):
 
     def __init__(
@@ -338,13 +379,6 @@ class FinetuneEfficientNetV2MultiTask(nn.Module):
             *create_head_classifier(num_classes, dropout_rate))
         self._subclass_classifier = nn.Sequential(
             *create_head_classifier(num_sub_classes, dropout_rate))
-        self._super_classifier_2 = nn.Sequential(
-            nn.ReLU(),
-            nn.Dropout(dropout_rate),
-            nn.Linear(
-                num_sub_classes, num_classes
-            )
-        )
         self._name = name if name else 'FinetuneEfficientNetV2MultiTask'
 
     def forward(self, x: Tensor) -> Tensor:
@@ -355,7 +389,7 @@ class FinetuneEfficientNetV2MultiTask(nn.Module):
         )
         superclass_out = self._super_classifier(
             features
-        ) + self._super_classifier_2(subclass_out)
+        )
 
         return superclass_out, subclass_out
 
