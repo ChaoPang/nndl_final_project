@@ -1,9 +1,15 @@
+from enum import Enum
 import torch.nn.functional
 from ensemble_trainer import *
 
 MODEL_NAME = 'best_model.pt'
 
 sys.setrecursionlimit(10000)
+
+
+class PretrainedModel(Enum):
+    FinetuneEfficientNetV2 = 'FinetuneEfficientNetV2'
+    FinetuneRegNet = 'FinetuneRegNet'
 
 
 def map_idx_to_superclass(
@@ -25,6 +31,13 @@ def create_arg_parser():
     parser.add_argument('--num_of_classifiers', type=int, default=5, help='num_of_classifiers')
     parser.add_argument('--num_classes', type=int, default=3, help='num_classes')
     parser.add_argument('--batch_size', type=int, default=128, help='batch_size')
+    parser.add_argument(
+        '--pretrained_model',
+        action='store',
+        nargs='+',
+        choices=[e.value for e in PretrainedModel],
+        default=PretrainedModel.FinetuneEfficientNetV2.value
+    )
     parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
     parser.add_argument('--epochs', default=100, type=int, help='Number of epochs')
     parser.add_argument('--dropout_rate', default=0.5, type=float, help='Dropout rate')
