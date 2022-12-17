@@ -33,7 +33,7 @@ def create_arg_parser():
         '--pretrained_model',
         action='store',
         choices=[e.value for e in PretrainedModel],
-        default=PretrainedModel.FinetuneEfficientNetV2.value
+        default=PretrainedModel.FinetuneEfficientNetV2FeatureExtractor.value
     )
     parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
     parser.add_argument('--epochs', default=100, type=int, help='Number of epochs')
@@ -357,7 +357,7 @@ def main(args):
             dropout_rate=args.dropout_rate,
             deep_feature=args.deep_feature,
             freeze_weight=args.freeze_weight,
-            name=f'FinetuneEfficientNetV2_{i}'
+            name=f'{args.pretrained_model}_{i}'
         ) for i in range(args.num_of_classifiers)
     ]
 

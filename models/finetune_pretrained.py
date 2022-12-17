@@ -8,8 +8,9 @@ from torchvision.models.feature_extraction import create_feature_extractor
 
 
 class PretrainedModel(Enum):
-    FinetuneEfficientNetV2 = 'FinetuneEfficientNetV2'
-    FinetuneRegNet = 'FinetuneRegNet'
+    FinetuneEfficientNetV2FeatureExtractor = 'FinetuneEfficientNetV2FeatureExtractor'
+    FinetuneRegNetFeatureExtractor = 'FinetuneRegNetFeatureExtractor'
+    FinetuneResnet152FeatureExtractor = 'FinetuneResnet152FeatureExtractor'
 
 
 class PretrainedFeatureExtractor(nn.Module):
@@ -330,12 +331,16 @@ def create_multitask_trainer(
         deep_feature=False,
         name=None
 ) -> nn.Module:
-    if pretrained_model == PretrainedModel.FinetuneEfficientNetV2:
+    if pretrained_model == PretrainedModel.FinetuneEfficientNetV2FeatureExtractor:
         finetune_extractor_class = FinetuneEfficientNetV2FeatureExtractor
-    elif pretrained_model == PretrainedModel.FinetuneRegNet:
+    elif pretrained_model == PretrainedModel.FinetuneRegNetFeatureExtractor:
         finetune_extractor_class = FinetuneRegNetFeatureExtractor
+    elif pretrained_model == PretrainedModel.FinetuneResnet152FeatureExtractor:
+        finetune_extractor_class = FinetuneResnet152FeatureExtractor
     else:
-        raise RuntimeError(f'We only support FinetuneEfficientNetV2 and FinetuneRegNet')
+        raise RuntimeError(
+            f'We only support FinetuneEfficientNetV2FeatureExtractor,  '
+            f'FinetuneRegNetFeatureExtractor, and FinetuneResnet152FeatureExtractor')
 
     return FinetuneWithMultiTask(
         num_classes=num_classes,
