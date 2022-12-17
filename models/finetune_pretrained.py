@@ -379,31 +379,16 @@ class FinetuneEfficientNetV2MultiTask(nn.Module):
             *create_head_classifier(num_classes, dropout_rate))
         self._subclass_classifier = nn.Sequential(
             *create_head_classifier(num_sub_classes, dropout_rate))
-        self._linear_layer = nn.Sequential(
-            nn.ReLU(),
-            nn.Dropout(dropout_rate),
-            nn.Linear(
-                self._feature_extractor.output_num_features + num_classes,
-                self._feature_extractor.output_num_features
-            )
-        )
         self._name = name if name else 'FinetuneEfficientNetV2MultiTask'
 
     def forward(self, x: Tensor) -> Tensor:
         # This returns a named feature
         features = self._feature_extractor(x)
-        superclass_out = self._super_classifier(
+        subclass_out = self._subclass_classifier(
             features
         )
-
-        subclass_input = self._linear_layer(
-            torch.cat([
-                features, superclass_out,
-            ], dim=-1)
-        )
-
-        subclass_out = self._subclass_classifier(
-            subclass_input
+        superclass_out = self._super_classifier(
+            features
         )
 
         return superclass_out, subclass_out
