@@ -99,8 +99,7 @@ def train(
         train_loader,
         superclass_criterion,
         subclass_criterion,
-        optimizer,
-        mask_subclass
+        optimizer
 ):
     net.train()
 
@@ -110,10 +109,6 @@ def train(
     total = 0
 
     for batch_idx, (inputs, superclass_targets, subclass_targets) in enumerate(train_loader):
-        # Skip a specific subclass randomly for this epoch
-        mask = (subclass_targets == mask_subclass).squeeze()
-        subclass_targets = mask.int() * 89 + (~mask).int() * subclass_targets
-
         inputs = inputs.to(get_device())
         superclass_targets = superclass_targets.to(get_device())
         subclass_targets = subclass_targets.to(get_device())
@@ -160,8 +155,7 @@ def validate(
         val_loader,
         superclass_criterion,
         subclass_criterion,
-        external_validation,
-        mask_subclass
+        external_validation
 ):
     net.eval()
     val_loss = 0
@@ -171,11 +165,6 @@ def validate(
 
     with torch.no_grad():
         for batch_idx, (inputs, superclass_targets, subclass_targets) in enumerate(val_loader):
-
-            # Replace a specific subclass randomly for this epoch
-            mask = (subclass_targets == mask_subclass).squeeze()
-            subclass_targets = mask.int() * 89 + (~mask).int() * subclass_targets
-
             inputs = inputs.to(get_device())
             superclass_targets = superclass_targets.to(get_device())
             subclass_targets = subclass_targets.to(get_device())
@@ -361,6 +350,14 @@ def main(args):
             freeze_weight=args.freeze_weight,
             name=f'FinetuneEfficientNetV2_{i}'
         ) for i in range(args.num_of_classifiers)
+    ] + [
+        FinetuneRegnetMultiTask(
+            num_classes=3,
+            num_sub_classes=90,
+            deep_feature=args.deep_feature,
+            freeze_weight=args.freeze_weight,
+            name=f'FinetuneEfficientNetV2_{i}'
+        ) for i in range(args.num_of_classifiers)
     ]
 
     histories = train_model(
@@ -400,15 +397,12 @@ def training_loop(
 
     for epoch in range(0, epochs):
 
-        mask_subclass = random.randint(0, 88)
-
         train_loss, train_acc = train(
             net,
             train_dataloader,
             superclass_criterion,
             subclass_criterion,
-            optimizer,
-            mask_subclass
+            optimizer
         )
 
         val_loss, val_acc = validate(
@@ -416,8 +410,7 @@ def training_loop(
             val_dataloader,
             superclass_criterion,
             subclass_criterion,
-            external_validation,
-            mask_subclass
+            external_validation
         )
         scheduler.step()
 
