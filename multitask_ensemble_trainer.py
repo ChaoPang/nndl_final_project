@@ -56,6 +56,8 @@ def create_arg_parser():
                         help='input_folder containing the images')
     parser.add_argument('--checkpoint_path', required=True, help='checkpoint_path for the model')
     parser.add_argument('--external_validation', action='store_true',
+                        help='Using CIFAR data to validate the model')
+    parser.add_argument('--use_cifar_for_test', action='store_true',
                         help='Using CIFAR data to test the model')
     parser.add_argument('--val_data_path', required='--external_validation' in sys.argv,
                         help='input_folder containing the CIFAR images')
@@ -220,13 +222,21 @@ def predict(
         ensemble_models,
         args
 ):
-    test_set = ProjectDataSet(
-        image_folder_path=args.test_data_path,
-        is_training=False,
-        is_superclass=args.is_superclass,
-        img_size=args.img_size,
-        multitask=True
-    )
+    if args.use_cifar_for_test:
+        test_set = CifarValidationDataset(
+            cifar_data_folder=args.val_data_path,
+            download=True,
+            img_size=args.img_size,
+            multitask=True
+        )
+    else:
+        test_set = ProjectDataSet(
+            image_folder_path=args.test_data_path,
+            is_training=False,
+            is_superclass=args.is_superclass,
+            img_size=args.img_size,
+            multitask=True
+        )
 
     data_loader = DataLoader(
         test_set, batch_size=args.batch_size, num_workers=4
