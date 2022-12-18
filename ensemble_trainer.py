@@ -392,7 +392,7 @@ def create_training_datasets(
 
     # If the up sampler is enabled, we use the default 32 by 32 image for validation
     # Use the CIFAR data as the external validation set
-    if args.is_superclass:
+    if args.is_superclass and args.external_validation:
         val_set = CifarValidationDataset(
             cifar_data_folder=args.val_data_path,
             download=True,
