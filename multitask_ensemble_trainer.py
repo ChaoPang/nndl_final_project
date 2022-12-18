@@ -1,3 +1,5 @@
+import random
+
 import torch.nn.functional
 from ensemble_trainer import *
 from models.finetune_pretrained import PretrainedModel
@@ -349,12 +351,15 @@ def train_model(
 
 
 def main(args):
+    random_dropout_rates = [
+        random.uniform(0.1, 0.3) for _ in range(args.num_of_classifiers)
+    ]
     ensemble_models = [
         create_multitask_trainer(
             num_classes=args.num_classes,
             num_subclasses=args.num_subclasses,
             pretrained_model=PretrainedModel(args.pretrained_model),
-            dropout_rate=args.dropout_rate,
+            dropout_rate=random_dropout_rates[i],
             deep_feature=args.deep_feature,
             freeze_weight=args.freeze_weight,
             name=f'{args.pretrained_model}_{i}'
@@ -392,7 +397,7 @@ def training_loop(
         external_validation
 ):
     early_stopping_counter = 0
-    best_val_acc = 1e6
+    best_val_acc = 0
 
     history = {}
 
@@ -423,7 +428,7 @@ def training_loop(
             val_acc=val_acc
         )
 
-        if val_acc < best_val_acc:
+        if val_acc > best_val_acc:
             checkpoint(net, history, os.path.join(checkpoint_path, net.name), MODEL_NAME)
             best_val_acc = val_acc
             early_stopping_counter = 0
