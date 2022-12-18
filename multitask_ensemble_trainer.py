@@ -392,7 +392,7 @@ def training_loop(
         external_validation
 ):
     early_stopping_counter = 0
-    best_val_loss = 1e6
+    best_val_acc = 1e6
 
     history = {}
 
@@ -423,9 +423,9 @@ def training_loop(
             val_acc=val_acc
         )
 
-        if val_loss < best_val_loss:
+        if val_acc < best_val_acc:
             checkpoint(net, history, os.path.join(checkpoint_path, net.name), MODEL_NAME)
-            best_val_loss = val_loss
+            best_val_acc = val_acc
             early_stopping_counter = 0
         else:
             early_stopping_counter += 1
@@ -434,7 +434,7 @@ def training_loop(
         if early_stopping_counter > early_stopping_patience:
             print("Validation loss has not improved in {} epochs, stopping early".format(
                 early_stopping_patience))
-            print("Obtained lowest validation loss of: {}".format(best_val_loss))
+            print("Obtained lowest validation loss of: {}".format(best_val_acc))
             break
 
     return history
