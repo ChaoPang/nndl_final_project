@@ -1,6 +1,9 @@
 from abc import abstractmethod
 from enum import Enum
 
+import math
+import random
+
 from torch import nn, Tensor
 from torchvision import models
 import torch.nn.functional as F
@@ -16,16 +19,26 @@ class PretrainedModel(Enum):
 class PretrainedFeatureExtractor(nn.Module):
     output_num_features = 512
 
-    def __init__(self, freeze_weight, deep_feature: bool = False):
+    def __init__(
+            self,
+            freeze_weight,
+            deep_feature: bool = False,
+            random_freeze_weight_rate: float = 0.5
+    ):
         super(PretrainedFeatureExtractor, self).__init__()
         self._freeze_weight = freeze_weight
         self._deep_feature = deep_feature
+        self._random_freeze_weight_rate = random_freeze_weight_rate
         self._feature_extractor = self._get_feature_extractor()
 
         # Freeze all the weights
         if freeze_weight:
-            for _, p in self._feature_extractor.named_parameters():
-                p.requires_grad = False
+            depth = len(list(self._feature_extractor.features.children()))
+            for index, child in enumerate(self._feature_extractor.features.children()):
+                prob = math.pow(self._random_freeze_weight_rate, depth - index)
+                for _, p in child.named_parameters():
+                    if random.random() < prob:
+                        p.requires_grad = False
 
         self._linear_layer = nn.Sequential(
             nn.Linear(self._get_num_features(), self.output_num_features)
