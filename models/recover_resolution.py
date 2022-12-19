@@ -109,53 +109,37 @@ class ConvAutoEncoderV2(nn.Module):
         )
 
         self._encoder_layer_2 = nn.Sequential(
-            nn.Conv2d(16, 32, 3, stride=1),  # (32, 6, 6)
+            nn.Conv2d(16, 32, 3, stride=2, padding=1),  # (32, 4, 4)
             nn.BatchNorm2d(32),
             nn.ReLU(True)
         )
 
         self._encoder_layer_3 = nn.Sequential(
-            nn.Conv2d(32, 64, 3, stride=1),  # (64, 4, 4)
+            nn.Conv2d(32, 64, 3, stride=2, padding=1),  # (64, 2, 2)
             nn.BatchNorm2d(64),
             nn.ReLU(True)
-        )
-
-        self._encoder_layer_4 = nn.Sequential(
-            nn.Conv2d(64, 128, 3, stride=1),  # (128, 2, 2)
-            nn.BatchNorm2d(128),
-            nn.ReLU(True)
-        )
-
-        self._linear = nn.Sequential(
-            nn.Flatten(start_dim=1),
-            nn.Linear(2 * 2 * 128, 2 * 2 * 128),
-            nn.ReLU(True),
-            nn.Unflatten(
-                dim=1,
-                unflattened_size=(128, 2, 2)
-            )
         )
 
         self._decoder_layer_1 = nn.Sequential(
-            nn.ConvTranspose2d(128, 64, 3, stride=2, padding=1, output_padding=1),  # (64, 4, 4)
-            nn.BatchNorm2d(64),
-            nn.ReLU(True)
-        )
-
-        self._decoder_layer_2 = nn.Sequential(
-            nn.ConvTranspose2d(64, 32, 3, stride=1),  # (32, 6, 6)
+            nn.ConvTranspose2d(64, 32, 3, stride=2, padding=1, output_padding=1),  # (32, 4, 4)
             nn.BatchNorm2d(32),
             nn.ReLU(True)
         )
 
-        self._decoder_layer_3 = nn.Sequential(
-            nn.ConvTranspose2d(32, 16, 3, stride=1),  # (16, 8, 8)
+        self._decoder_layer_2 = nn.Sequential(
+            nn.ConvTranspose2d(32, 16, 3, stride=2, padding=1, output_padding=1),  # (16, 8, 8)
             nn.BatchNorm2d(16),
             nn.ReLU(True)
         )
 
-        self._output = nn.Sequential(
-            nn.ConvTranspose2d(16, 3, 3, stride=2, padding=1, output_padding=1),  # (3, 32, 32)
+        self._decoder_layer_3 = nn.Sequential(
+            nn.ConvTranspose2d(16, 8, 3, stride=2, padding=1, output_padding=1),  # (8, 16, 16)
+            nn.BatchNorm2d(8),
+            nn.ReLU(True)
+        )
+
+        self._decoder_layer_4 = nn.Sequential(
+            nn.ConvTranspose2d(8, 3, 3, stride=2, padding=1, output_padding=1),  # (3, 32, 32)
             nn.BatchNorm2d(3),
             nn.ReLU(True)
         )
@@ -163,22 +147,16 @@ class ConvAutoEncoderV2(nn.Module):
     def forward(self, x: Tensor) -> Tensor:
         out1 = self._encoder_layer_1(x)
         out2 = self._encoder_layer_2(out1)
-        out3 = self._encoder_layer_3(out2)
-        out4 = self._encoder_layer_4(out3)
+        encoder_out = self._encoder_layer_3(out2)
 
-        decoder_inpout = self._linear(out4)
-
-        decoder_inpout = decoder_inpout + out4
-
-        decoder_out_1 = self._decoder_layer_1(decoder_inpout)
-        decoder_out_1 = decoder_out_1 + out3
+        decoder_out_1 = self._decoder_layer_1(encoder_out)
+        decoder_out_1 = decoder_out_1 + out2
 
         decoder_out_2 = self._decoder_layer_2(decoder_out_1)
-        decoder_out_2 = decoder_out_2 + out2
+        decoder_out_2 = decoder_out_2 + out1
 
         decoder_out_3 = self._decoder_layer_3(decoder_out_2)
-        decoder_out_3 = decoder_out_3 + out1
-        decoder_out = self._output(decoder_out_3)
+        decoder_out = self._decoder_layer_4(decoder_out_3)
 
         return decoder_out
 
