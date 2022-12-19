@@ -7,7 +7,7 @@ The project is built in python 3.7, and project dependency needs to be installed
 `pip3 install -r requirements.txt`
 ### Train Conv AutoEncoder to increase the resolution  
 `
-PYTHONPATH=./:$PYTHONPATH python3 recover_resolution_trainer.py --checkpoint_path checkpoint_recover_imgs_v3 --epochs 100 --cifar_data_path data --lr 0.01
+PYTHONPATH=./:$PYTHONPATH python3 recover_resolution_trainer.py --checkpoint_path checkpoint --epochs 100 --data_path image_folder --img_input_size 8 --img_output_size 32
 `
 
 ### Train the model for competition
