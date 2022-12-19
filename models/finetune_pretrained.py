@@ -23,7 +23,7 @@ class PretrainedFeatureExtractor(nn.Module):
             self,
             freeze_weight,
             deep_feature: bool = False,
-            random_freeze_weight_rate: float = 0.5
+            random_freeze_weight_rate: float = 0.2
     ):
         super(PretrainedFeatureExtractor, self).__init__()
         self._freeze_weight = freeze_weight
@@ -33,12 +33,9 @@ class PretrainedFeatureExtractor(nn.Module):
 
         # Freeze all the weights
         if freeze_weight:
-            depth = len(list(self._feature_extractor.features.children()))
-            for index, child in enumerate(self._feature_extractor.features.children()):
-                prob = math.pow(self._random_freeze_weight_rate, depth - index)
-                for _, p in child.named_parameters():
-                    if random.random() < prob:
-                        p.requires_grad = False
+            for _, p in self._feature_extractor.named_parameters():
+                if random.random() < random_freeze_weight_rate:
+                    p.requires_grad = False
 
         self._linear_layer = nn.Sequential(
             nn.Linear(self._get_num_features(), self.output_num_features)
