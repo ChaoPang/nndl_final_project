@@ -54,7 +54,7 @@ def create_arg_parser():
     parser.add_argument('--training_label_path', required=True, help='the path to training label')
     parser.add_argument('--test_data_path', required=True,
                         help='input_folder containing the images')
-    parser.add_argument('--test_data_label', required=False,
+    parser.add_argument('--test_label_path', required=False,
                         help='Test label path containing the images')
     parser.add_argument('--checkpoint_path', required=True, help='checkpoint_path for the model')
     parser.add_argument('--external_validation', action='store_true',
@@ -234,7 +234,7 @@ def predict(
     else:
         test_set = ProjectDataSet(
             image_folder_path=args.test_data_path,
-            data_label_path=args.test_data_label,
+            data_label_path=args.test_label_path,
             is_training=False,
             is_superclass=args.is_superclass,
             img_size=args.img_size,
@@ -328,7 +328,7 @@ def train_model(
         superclass_criterion = nn.CrossEntropyLoss()
         subclass_criterion = nn.CrossEntropyLoss()
         optimizer = optim.Adam(
-            net.parameters(), lr=args.lr, weight_decay=1e-4, eps=0.1
+            net.parameters(), lr=args.lr, weight_decay=weight_decay, eps=epsilon
         )
 
         # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
