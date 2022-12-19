@@ -120,6 +120,7 @@ class ProjectDataSet(Dataset):
             ])
         else:
             transformers.extend([
+                transforms.CenterCrop(self._img_size),
                 transforms.Resize(self._img_size),
                 transforms.ToTensor()
             ])

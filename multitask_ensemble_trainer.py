@@ -54,6 +54,8 @@ def create_arg_parser():
     parser.add_argument('--training_label_path', required=True, help='the path to training label')
     parser.add_argument('--test_data_path', required=True,
                         help='input_folder containing the images')
+    parser.add_argument('--test_data_label', required=False,
+                        help='Test label path containing the images')
     parser.add_argument('--checkpoint_path', required=True, help='checkpoint_path for the model')
     parser.add_argument('--external_validation', action='store_true',
                         help='Using CIFAR data to validate the model')
@@ -232,6 +234,7 @@ def predict(
     else:
         test_set = ProjectDataSet(
             image_folder_path=args.test_data_path,
+            data_label_path=args.test_data_label,
             is_training=False,
             is_superclass=args.is_superclass,
             img_size=args.img_size,
