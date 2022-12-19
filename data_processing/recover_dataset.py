@@ -1,29 +1,32 @@
+import os
 import numpy as np
 import torch.utils
 import torchvision
 from torch.utils.data import Dataset
-from torchvision.datasets import CIFAR10, CIFAR100, Caltech101, Caltech256
-from PIL import Image
+from torchvision.datasets import CIFAR10, CIFAR100, Caltech101, Caltech256, ImageFolder
+
+IMAGENET_FOLDER = 'imagenet'
 
 
-class RecoverResolutionCifarDataset(Dataset):
+class RecoverResolutionDataset(Dataset):
 
     def __init__(
             self,
             img_input_size=8,
             img_output_size=32,
-            cifar_data_folder='./data',
+            data_folder='./data',
             download=True
     ):
         self._img_input_size = img_input_size
         self._img_output_size = img_output_size
-        self._cifar_data_folder = cifar_data_folder
+        self._data_folder = data_folder
         self._download = download
         self._cifar_dataset = torch.utils.data.ConcatDataset([
-            self._get_cifar10_dataset(),
-            self._get_cifar100_dataset(),
-            self._get_caltech101_dataset(),
-            self._get_caltech256_dataset()
+            # self._get_cifar10_dataset(),
+            # self._get_cifar100_dataset(),
+            self._get_imagenet_dataset()
+            # self._get_caltech101_dataset(),
+            # self._get_caltech256_dataset()
         ])
         self._resize_input_transformers = torchvision.transforms.Compose([
             torchvision.transforms.Resize((self._img_input_size, self._img_input_size)),
@@ -36,12 +39,12 @@ class RecoverResolutionCifarDataset(Dataset):
 
     def _get_cifar10_dataset(self):
         cifar10_train = CIFAR10(
-            root=self._cifar_data_folder,
+            root=self._data_folder,
             train=True,
             download=self._download
         )
         cifar10_test = CIFAR10(
-            root=self._cifar_data_folder,
+            root=self._data_folder,
             train=False,
             download=self._download
         )
@@ -51,12 +54,12 @@ class RecoverResolutionCifarDataset(Dataset):
 
     def _get_cifar100_dataset(self):
         cifar100_train = CIFAR100Coarse(
-            root=self._cifar_data_folder,
+            root=self._data_folder,
             train=True,
             download=self._download
         )
         cifar100_test = CIFAR100Coarse(
-            root=self._cifar_data_folder,
+            root=self._data_folder,
             train=False,
             download=self._download
         )
@@ -64,13 +67,23 @@ class RecoverResolutionCifarDataset(Dataset):
             cifar100_train, cifar100_test
         ])
 
+    def _get_imagenet_dataset(self):
+        transformers = torchvision.transforms.Compose([
+            torchvision.transforms.Resize((self._img_output_size, self._img_output_size))
+        ])
+        imagenet = ImageFolder(
+            root=os.path.join(self._data_folder, IMAGENET_FOLDER),
+            transform=transformers
+        )
+        return imagenet
+
     def _get_caltech101_dataset(self):
         transformers = torchvision.transforms.Compose([
             torchvision.transforms.Lambda(lambda x: x.convert('RGB')),
             torchvision.transforms.Resize((self._img_output_size, self._img_output_size))
         ])
         caltech101 = Caltech101(
-            root=self._cifar_data_folder,
+            root=self._data_folder,
             download=self._download,
             transform=transformers
         )
@@ -82,7 +95,7 @@ class RecoverResolutionCifarDataset(Dataset):
             torchvision.transforms.Resize((self._img_output_size, self._img_output_size))
         ])
         caltech256 = Caltech256(
-            root=self._cifar_data_folder,
+            root=self._data_folder,
             download=self._download,
             transform=transformers
         )

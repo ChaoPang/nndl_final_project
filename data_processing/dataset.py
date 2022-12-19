@@ -32,7 +32,10 @@ def get_cifar100_transformers(img_size):
     transform = torchvision.transforms.Compose([
         torchvision.transforms.Resize(img_size),
         torchvision.transforms.ToTensor(),
-        # torchvision.transforms.Normalize(*((0.5074, 0.4867, 0.4411), (0.2011, 0.1987, 0.2025)))
+        # torchvision.transforms.Normalize(
+        #     mean=[0.5074, 0.4867, 0.4411],
+        #     std=[0.2011, 0.1987, 0.2025]
+        # )
     ])
     return transform
 
@@ -42,10 +45,17 @@ def get_cifar10_transformers(img_size):
         torchvision.transforms.Resize(img_size),
         torchvision.transforms.ToTensor(),
         # torchvision.transforms.Normalize(
-        #     *((0.49139968, 0.48215827, 0.44653124),
-        #       (0.24703233, 0.24348505, 0.26158768)))
+        #     mean=[0.49139968, 0.48215827, 0.44653124],
+        #     std=[0.24703233, 0.24348505, 0.26158768])
     ])
     return transform
+
+
+def get_data_normalize():
+    return transforms.Normalize(
+        mean=[0.4707, 0.4431, 0.3708],
+        std=[0.1577, 0.1587, 0.1783]
+    )
 
 
 class ProjectDataSet(Dataset):
@@ -56,24 +66,24 @@ class ProjectDataSet(Dataset):
             is_training=True,
             is_superclass=True,
             img_size=8,
-            normalize=True
-            # up_sampler: nn.Module = None
+            normalize=False,
+            multitask=False
     ):
         self._image_folder_path = image_folder_path
         self._data_label_path = data_label_path
         self._file_names = get_all_filenames(image_folder_path)
         self._is_training = is_training
         self._is_superclass = is_superclass
-        self._is_training = data_label_path is not None
+        self._is_training = is_training
         self._img_size = img_size
         self._normalize = normalize
-        # self._up_sampler = up_sampler
-        #
-        # if self._up_sampler:
-        #     assert self._img_size == 8, 'The up sampler only supports 8 by 8 images'
-        #     self._up_sampler.eval()
+        self._multitask = multitask
 
         self._label_dict = self._get_class_label(
+            data_label_path
+        )
+
+        self._superclass_label_dict, self._subclass_label_dict = self._get_class_label(
             data_label_path
         )
 
@@ -81,18 +91,23 @@ class ProjectDataSet(Dataset):
             self,
             data_label_path: str
     ):
+        superclass_dict = dict()
+        subclass_dict = dict()
         if data_label_path:
             y_train_label = pd.read_csv(data_label_path)
-            class_column_name = 'superclass_index' if self._is_superclass else 'subclass_index'
-            if class_column_name not in y_train_label.columns:
-                raise RuntimeError(f'Required column {class_column_name} is missing')
-            if 'image' not in y_train_label.columns:
-                raise RuntimeError('Required column image_index is missing')
-            return dict(
-                (t.image, getattr(t, class_column_name))
-                for t in y_train_label.itertuples()
-            )
-        return dict()
+
+            if 'superclass_index' in y_train_label.columns:
+                superclass_dict = dict(
+                    (t.image, getattr(t, 'superclass_index'))
+                    for t in y_train_label.itertuples()
+                )
+            if 'subclass_index' in y_train_label.columns:
+                subclass_dict = dict(
+                    (t.image, getattr(t, 'subclass_index'))
+                    for t in y_train_label.itertuples()
+                )
+
+        return superclass_dict, subclass_dict
 
     def _get_transformers(self):
         transformers = []
@@ -108,10 +123,6 @@ class ProjectDataSet(Dataset):
                 transforms.Resize(self._img_size),
                 transforms.ToTensor()
             ])
-        #
-        # # If the up sampler is unspecified, we simply resize the image
-        # if not self._up_sampler:
-        #     transformers.insert(0, transforms.Resize(self._img_size))
 
         if self._normalize:
             transformers.append(
@@ -124,10 +135,23 @@ class ProjectDataSet(Dataset):
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         img = Image.fromarray(img)
         img = self._get_transformers()(img)
-        # if self._up_sampler:
-        #     img = self._up_sampler(img.unsqueeze(0))
-        #     img = img.squeeze(0)
-        return img, self._label_dict.get(self._file_names[idx], 0)
+
+        if self._multitask:
+            return (
+                img,
+                self._superclass_label_dict.get(self._file_names[idx], 0),
+                self._subclass_label_dict.get(self._file_names[idx], 0)
+            )
+        elif self._is_superclass:
+            return (
+                img,
+                self._superclass_label_dict.get(self._file_names[idx], 0)
+            )
+        else:
+            return (
+                img,
+                self._subclass_label_dict.get(self._file_names[idx], 0)
+            )
 
     def __len__(self):
         return len(self._file_names)
@@ -138,17 +162,22 @@ class CifarValidationDataset(Dataset):
             self,
             img_size=8,
             cifar_data_folder='./data',
-            download=True
+            download=True,
+            multitask=False
     ):
         self._img_size = img_size
         self._cifar_data_folder = cifar_data_folder
         self._download = download
+        self._multitask = multitask
         self._cifar_dataset = torch.utils.data.ConcatDataset([
             self._get_cifar10_dataset(),
             self._get_cifar100_dataset()
         ])
 
     def __getitem__(self, idx):
+        if self._multitask:
+            img, target = self._cifar_dataset[idx]
+            return img, target, 0
         return self._cifar_dataset[idx]
 
     def __len__(self):
@@ -222,4 +251,3 @@ class CifarValidationDataset(Dataset):
         cifar100_train.targets = y
 
         return cifar100_train
-

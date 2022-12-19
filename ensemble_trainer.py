@@ -1,3 +1,4 @@
+import random
 import sys
 import os
 import pickle
@@ -7,26 +8,19 @@ import pandas as pd
 import torch.nn.functional
 
 import torch.optim as optim
-from torchvision import transforms
 from torch.utils.data import DataLoader
-from models.resnet import ResNet101
-from data_processing.dataset import ProjectDataSet, CifarValidationDataset, get_data_normalize
+
+from data_processing.dataset import ProjectDataSet, CifarValidationDataset
 from models.finetune_pretrained import *
 from utils.class_mapping import IDX_TO_SUPERCLASS_DICT, IDX_TO_SUBCLASS_MAPPING
 
 from utils.utils import progress_bar
-from utils.compute_mean_std import calculate_stats
 
 import matplotlib.pyplot as plt
 
 MODEL_NAME = 'best_model.pt'
 
 sys.setrecursionlimit(10000)
-
-pretrained_normalize = transforms.Normalize(
-    mean=[0.485, 0.456, 0.406],
-    std=[0.229, 0.224, 0.225]
-)
 
 
 def map_idx_to_superclass(
@@ -54,8 +48,8 @@ def create_arg_parser():
                         help='Whether or not we freeze the weights of the pretrained model')
     parser.add_argument('--deep_feature', action='store_true',
                         help='Whether or not extract the deep feature')
-    parser.add_argument('--normalize', action='store_true',
-                        help='Whether or not normalize the features')
+    parser.add_argument('--mix_model', action='store_true',
+                        help='Whether or not we use mixed ensemble models')
     parser.add_argument('--early_stopping_patience', default=10, type=int,
                         help='Early stopping patience')
     parser.add_argument('--img_size', default=8, type=int, help='Image Size')
@@ -65,8 +59,6 @@ def create_arg_parser():
     parser.add_argument('--test_data_path', required=True,
                         help='input_folder containing the images')
     parser.add_argument('--val_data_path', required=True,
-                        help='input_folder containing the CIFAR images')
-    parser.add_argument('--val_data_label_path', required='--is_superclass' not in sys.argv,
                         help='input_folder containing the CIFAR images')
     parser.add_argument('--checkpoint_path', required=True, help='checkpoint_path for the model')
     parser.add_argument('--external_validation', action='store_true',
@@ -114,7 +106,6 @@ def train(
         train_loader,
         criterion,
         optimizer,
-        device,
         up_sampler: nn.Module = None
 ):
     if up_sampler:
@@ -126,23 +117,11 @@ def train(
     correct = 0
     total = 0
 
-    # Get normalize transform
-    if up_sampler:
-        train_mean, train_std = calculate_stats(train_loader, up_sampler)
-        data_normalize_transform = transforms.Normalize(
-            mean=train_mean,
-            std=train_std
-        )
-    else:
-        data_normalize_transform = get_data_normalize()
-
     for batch_idx, (inputs, targets) in enumerate(train_loader):
-        inputs, targets = inputs.to(device), targets.to(device)
+        inputs, targets = inputs.to(get_device()), targets.to(get_device())
 
         if up_sampler:
             inputs = up_sampler(inputs)
-
-        inputs = data_normalize_transform(inputs)
 
         optimizer.zero_grad()
         outputs = net(inputs)
@@ -167,7 +146,6 @@ def validate(
         net,
         val_loader,
         criterion,
-        device,
         up_sampler: nn.Module = None
 ):
     if up_sampler:
@@ -178,21 +156,11 @@ def validate(
     correct = 0
     total = 0
 
-    if up_sampler:
-        val_mean, val_std = calculate_stats(val_loader, up_sampler)
-        data_normalize_transform = transforms.Normalize(
-            mean=val_mean,
-            std=val_std
-        )
-    else:
-        data_normalize_transform = get_data_normalize()
-
     with torch.no_grad():
         for batch_idx, (inputs, targets) in enumerate(val_loader):
-            inputs, targets = inputs.to(device), targets.to(device)
+            inputs, targets = inputs.to(get_device()), targets.to(get_device())
             if up_sampler:
                 inputs = up_sampler(inputs)
-            inputs = data_normalize_transform(inputs)
 
             outputs = net(inputs)
             loss = criterion(outputs, targets)
@@ -211,43 +179,42 @@ def validate(
 
 
 def predict(
-        net,
-        test_set,
-        batch_size,
-        device,
-        is_label_available: bool = False,
+        ensemble_models,
+        args,
         up_sampler: nn.Module = None
 ):
-    data_loader = DataLoader(
-        test_set, batch_size=batch_size, num_workers=4
+    test_set = ProjectDataSet(
+        image_folder_path=args.test_data_path,
+        is_training=False,
+        is_superclass=args.is_superclass,
+        img_size=args.img_size
     )
 
-    # Get normalize transform
-    if up_sampler:
-        train_mean, train_std = calculate_stats(data_loader, up_sampler)
-        data_normalize_transform = transforms.Normalize(
-            mean=train_mean,
-            std=train_std
-        )
-    else:
-        data_normalize_transform = get_data_normalize()
+    data_loader = DataLoader(
+        test_set, batch_size=args.batch_size, num_workers=4
+    )
 
-    net.eval()
     predictions = []
     labels = []
     correct = 0
     total = 0
+
     with torch.no_grad():
         for batch_idx, (inputs, targets) in enumerate(data_loader):
 
             if up_sampler:
-                inputs = up_sampler(inputs.to(device))
+                inputs = up_sampler(inputs.to(get_device()))
 
-            inputs = data_normalize_transform(inputs)
-            outputs = net(inputs.to(device))
-            predicted = torch.argmax(outputs, dim=-1)
+            outputs = []
+            for net in ensemble_models:
+                net.to(get_device())
+                net.eval()
+                outputs.append(net(inputs.to(get_device())))
+                net.to('cpu')
+            average_output = torch.stack(outputs, dim=1).mean(dim=1)
+            predicted = torch.argmax(average_output, dim=-1)
             predictions.append(predicted.detach().cpu().numpy())
-            if is_label_available:
+            if args.test_label:
                 labels.append(targets.detach().cpu().numpy())
                 total += targets.size(0)
                 correct += predicted.detach().cpu().eq(targets).sum().item()
@@ -257,49 +224,76 @@ def predict(
     predictions_pd['prediction_class'] = map_idx_to_superclass(predictions_pd.predictions)
     predictions_pd['prediction_subclass'] = map_idx_to_subclass(predictions_pd.predictions)
 
-    if is_label_available:
+    if args.test_label:
         predictions_pd['label'] = np.hstack(labels)
 
     return predictions_pd
 
 
 def train_model(
-        net,
-        train_set,
-        val_set,
+        ensemble_models,
         args,
-        device,
         up_sampler: nn.Module = None
 ):
-    train_dataloader = DataLoader(
-        train_set, batch_size=args.batch_size, shuffle=True, num_workers=4
-    )
+    histories = []
+    # Train each net individually
+    for net in ensemble_models:
+        train_set, val_set = create_training_datasets(args)
 
-    val_dataloader = DataLoader(
-        val_set, batch_size=args.batch_size, shuffle=True, num_workers=4
-    )
+        train_dataloader = DataLoader(
+            train_set, batch_size=args.batch_size, shuffle=True, num_workers=4
+        )
 
-    criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(
-        net.parameters(), lr=args.lr, weight_decay=1e-4, eps=0.1
-    )
-    # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
-    scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
-    history = training_loop(
-        net,
-        train_dataloader,
-        val_dataloader,
-        criterion,
-        optimizer,
-        scheduler,
-        args.epochs,
-        device,
-        args.early_stopping_patience,
-        args.checkpoint_path,
-        up_sampler
-    )
+        val_dataloader = DataLoader(
+            val_set, batch_size=args.batch_size, shuffle=True, num_workers=4
+        )
 
-    return history
+        net = net.to(get_device())
+
+        if args.is_superclass:
+            # Empirical evidence
+            weight_decay = random.uniform(1e-3, 1e-4)
+            epsilon = random.uniform(0.01, 0.1)
+        else:
+            weight_decay = random.uniform(0.5e-3, 1.5e-3)
+            epsilon = random.uniform(0.05, 0.15)
+
+        gamma = random.uniform(0.85, 0.95)
+
+        criterion = nn.CrossEntropyLoss()
+        optimizer = optim.Adam(
+            net.parameters(), lr=args.lr, weight_decay=weight_decay, eps=epsilon
+        )
+
+        # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
+        scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=gamma)
+
+        print(f'Training {net.name}; weight_decay={weight_decay}; epsilon={epsilon}; gamma={gamma}')
+
+        history = training_loop(
+            net,
+            train_dataloader,
+            val_dataloader,
+            criterion,
+            optimizer,
+            scheduler,
+            args.epochs,
+            args.early_stopping_patience,
+            args.checkpoint_path,
+            up_sampler
+        )
+
+        # Load the best model according to the val loss
+        net = torch.load(
+            os.path.join(args.checkpoint_path, net.name, MODEL_NAME),
+            map_location=get_device()
+        )
+
+        history['name'] = net.name
+
+        histories.append(history)
+
+    return histories
 
 
 def get_device():
@@ -307,42 +301,70 @@ def get_device():
 
 
 def main(args):
-    train_set, val_set, test_set = create_datasets(args)
-
     # Initialize the model
-    device = get_device()
-
     if args.up_sampler_path:
         up_sampler = torch.load(
             args.up_sampler_path,
-            map_location=device
+            map_location=get_device()
         )
     else:
         up_sampler = None
 
-    net = ResNet101(
-        num_classes=args.num_classes
+    if args.mix_model:
+        ensemble_models = [
+            FinetuneResnet152(
+                num_classes=args.num_classes,
+                deep_feature=args.deep_feature,
+                freeze_weight=args.freeze_weight
+            ),
+            FinetuneWideResnet101(
+                num_classes=args.num_classes,
+                deep_feature=args.deep_feature,
+                freeze_weight=args.freeze_weight
+            ),
+            FinetuneRegNet(
+                num_classes=args.num_classes,
+                deep_feature=args.deep_feature,
+                freeze_weight=args.freeze_weight
+            ),
+            FinetuneEfficientNetV2(
+                num_classes=args.num_classes,
+                deep_feature=args.deep_feature,
+                freeze_weight=args.freeze_weight
+            ),
+            FinetuneEfficientNetB7(
+                num_classes=args.num_classes,
+                deep_feature=args.deep_feature,
+                freeze_weight=args.freeze_weight
+            )
+        ]
+    else:
+        ensemble_models = [
+            FinetuneEfficientNetV2(
+                num_classes=args.num_classes,
+                deep_feature=args.deep_feature,
+                freeze_weight=args.freeze_weight,
+                name=f'FinetuneEfficientNetV2_{i}'
+            ) for i in range(5)
+        ]
+
+    histories = train_model(
+        ensemble_models,
+        args,
+        up_sampler
     )
 
-    net = net.to(device)
-
-    history = train_model(net, train_set, val_set, args, device, up_sampler)
-
-    net = torch.load(os.path.join(args.checkpoint_path, MODEL_NAME))
     predictions_pd = predict(
-        net,
-        test_set,
-        args.batch_size,
-        device,
-        args.test_label,
+        ensemble_models,
+        args,
         up_sampler
     )
     predictions_pd.to_csv(
         os.path.join(args.checkpoint_path, 'predictions.csv'),
         index=False
     )
-
-    plot_training_loss(history, args.checkpoint_path)
+    for history in histories:
+        plot_training_loss(history, os.path.join(args.checkpoint_path, history['name']))
 
 
 def plot_training_loss(history, checkpoint_path):
@@ -356,45 +378,32 @@ def plot_training_loss(history, checkpoint_path):
     plt.savefig(checkpoint_path + "/training_curve.png")
 
 
-def create_datasets(
-        args
+def create_training_datasets(
+        args,
+        train_percentage=0.8
 ):
     train_set = ProjectDataSet(
         image_folder_path=args.training_data_path,
         data_label_path=args.training_label_path,
         is_training=True,
         is_superclass=args.is_superclass,
-        img_size=args.img_size,
-        normalize=args.normalize
-    )
-
-    test_set = ProjectDataSet(
-        image_folder_path=args.test_data_path,
-        is_training=False,
-        is_superclass=args.is_superclass,
-        img_size=args.img_size,
-        normalize=args.normalize
+        img_size=args.img_size
     )
 
     # If the up sampler is enabled, we use the default 32 by 32 image for validation
     # Use the CIFAR data as the external validation set
-    if args.is_superclass:
+    if args.is_superclass and args.external_validation:
         val_set = CifarValidationDataset(
             cifar_data_folder=args.val_data_path,
             download=True,
             img_size=args.img_upsampled_size if args.up_sampler_path else args.img_size
         )
-    else:
-        val_set = ProjectDataSet(
-            image_folder_path=args.val_data_path,
-            data_label_path=args.val_data_label_path,
-            is_training=False,
-            is_superclass=False,
-            img_size=args.img_size,
-            normalize=args.normalize
+        # Randomly slice out data for training to inject more noise into the ensemble method
+        train_size = int(len(train_set) * train_percentage)
+        train_set, _ = torch.utils.data.random_split(
+            train_set, [train_size, len(train_set) - train_size]
         )
-
-    if not args.external_validation:
+    else:
         train_total = len(train_set)
         train_size = int(train_total * 0.8)
         val_size = train_total - train_size
@@ -404,9 +413,8 @@ def create_datasets(
 
     print(f'train_set size: {len(train_set)}')
     print(f'val_set size: {len(val_set)}')
-    print(f'test_set size: {len(test_set)}')
 
-    return train_set, val_set, test_set
+    return train_set, val_set
 
 
 def update_metrics(
@@ -442,7 +450,6 @@ def training_loop(
         optimizer,
         scheduler,
         epochs,
-        device,
         early_stopping_patience,
         checkpoint_path,
         up_sampler: nn.Module = None
@@ -459,7 +466,6 @@ def training_loop(
             train_dataloader,
             criterion,
             optimizer,
-            device,
             up_sampler
         )
 
@@ -467,7 +473,6 @@ def training_loop(
             net,
             val_dataloader,
             criterion,
-            device,
             up_sampler
         )
         scheduler.step()
@@ -481,7 +486,7 @@ def training_loop(
         )
 
         if val_loss < best_val_loss:
-            checkpoint(net, history, checkpoint_path, MODEL_NAME)
+            checkpoint(net, history, os.path.join(checkpoint_path, net.name), MODEL_NAME)
             best_val_loss = val_loss
             early_stopping_counter = 0
         else:
