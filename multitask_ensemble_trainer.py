@@ -244,6 +244,7 @@ def predict(
 
     superclass_predictions = []
     subclass_predictions = []
+    subclass_probs = []
     superclass_labels = []
     subclass_labels = []
     subclass_correct = 0
@@ -267,9 +268,11 @@ def predict(
 
             superclass_prediction_batch = torch.argmax(average_superclass_output, dim=-1)
             subclass_prediction_batch = torch.argmax(average_subclass_output, dim=-1)
+            subclass_average_prob_batch = torch.max(average_subclass_output, dim=-1)[0]
 
             superclass_predictions.append(superclass_prediction_batch.detach().cpu().numpy())
             subclass_predictions.append(subclass_prediction_batch.detach().cpu().numpy())
+            subclass_probs.append(subclass_average_prob_batch.detach().cpu().numpy())
 
             superclass_labels.append(superclass_targets.detach().cpu().numpy())
             subclass_labels.append(subclass_targets.detach().cpu().numpy())
@@ -294,6 +297,7 @@ def predict(
             predictions_pd.superclass_prediction)
         predictions_pd['prediction_subclass'] = map_idx_to_subclass(
             predictions_pd.subclass_prediction)
+        predictions_pd['subclass_max_prob'] = np.hstack(subclass_probs)
 
     return predictions_pd
 
