@@ -325,7 +325,7 @@ def train_model(
         superclass_criterion = nn.CrossEntropyLoss()
         subclass_criterion = nn.CrossEntropyLoss()
         optimizer = optim.Adam(
-            net.parameters(), lr=args.lr, weight_decay=1e-4, eps=0.1
+            net.parameters(), lr=args.lr, weight_decay=weight_decay, eps=epsilon
         )
 
         # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
