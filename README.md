@@ -12,6 +12,6 @@ PYTHONPATH=./:$PYTHONPATH python3 recover_resolution_trainer.py --checkpoint_pat
 
 ### Train the model for competition
 `
-PYTHONPATH=./:$PYTHONPATH python3 multitask_ensemble_trainer.py --training_data_path data/project_data/train_shuffle/ --training_label_path data/project_data/train_data.csv --test_data_path data/project_data/test_shuffle/ --checkpoint_path checkpoint_multitask_essemble_img_32_val_acc --early_stopping_patience 10 --epochs 50 --lr 0.05 --img_size 32 --batch_size 64 --dropout_rate 0.2 --num_of_classifiers 5
+PYTHONPATH=./:$PYTHONPATH python3 multitask_ensemble_trainer.py --training_data_path train_shuffle/ --training_label_path train_data.csv --test_data_path test_shuffle/ --checkpoint_path checkpoint_multitask_essemble_img_32_val_acc --early_stopping_patience 10 --epochs 50 --lr 0.05 --img_size 32 --batch_size 64 --dropout_rate 0.2 --num_of_classifiers 5
 `
 
