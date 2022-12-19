@@ -98,6 +98,7 @@ class ConvAutoEncoder(nn.Module):
 class ConvAutoEncoderV2(nn.Module):
     def __init__(
             self
+
     ):
         super(ConvAutoEncoderV2, self).__init__()
 
@@ -108,37 +109,53 @@ class ConvAutoEncoderV2(nn.Module):
         )
 
         self._encoder_layer_2 = nn.Sequential(
-            nn.Conv2d(16, 32, 3, stride=2, padding=1),  # (32, 4, 4)
+            nn.Conv2d(16, 32, 3, stride=1),  # (32, 6, 6)
             nn.BatchNorm2d(32),
             nn.ReLU(True)
         )
 
         self._encoder_layer_3 = nn.Sequential(
-            nn.Conv2d(32, 64, 3, stride=2, padding=1),  # (64, 2, 2)
+            nn.Conv2d(32, 64, 3, stride=1),  # (64, 4, 4)
             nn.BatchNorm2d(64),
             nn.ReLU(True)
         )
 
+        self._encoder_layer_4 = nn.Sequential(
+            nn.Conv2d(64, 128, 3, stride=1),  # (128, 2, 2)
+            nn.BatchNorm2d(128),
+            nn.ReLU(True)
+        )
+
+        self._linear = nn.Sequential(
+            nn.Flatten(start_dim=1),
+            nn.Linear(2 * 2 * 128, 2 * 2 * 128),
+            nn.ReLU(True),
+            nn.Unflatten(
+                dim=1,
+                unflattened_size=(128, 2, 2)
+            )
+        )
+
         self._decoder_layer_1 = nn.Sequential(
-            nn.ConvTranspose2d(64, 32, 3, stride=2, padding=1, output_padding=1),  # (32, 4, 4)
-            nn.BatchNorm2d(32),
+            nn.ConvTranspose2d(128, 64, 3, stride=2, padding=1, output_padding=1),  # (64, 4, 4)
+            nn.BatchNorm2d(64),
             nn.ReLU(True)
         )
 
         self._decoder_layer_2 = nn.Sequential(
-            nn.ConvTranspose2d(32, 16, 3, stride=2, padding=1, output_padding=1),  # (16, 8, 8)
-            nn.BatchNorm2d(16),
+            nn.ConvTranspose2d(64, 32, 3, stride=1),  # (32, 6, 6)
+            nn.BatchNorm2d(32),
             nn.ReLU(True)
         )
 
         self._decoder_layer_3 = nn.Sequential(
-            nn.ConvTranspose2d(16, 8, 3, stride=2, padding=1, output_padding=1),  # (8, 16, 16)
-            nn.BatchNorm2d(8),
+            nn.ConvTranspose2d(32, 16, 3, stride=1),  # (16, 8, 8)
+            nn.BatchNorm2d(16),
             nn.ReLU(True)
         )
 
-        self._decoder_layer_4 = nn.Sequential(
-            nn.ConvTranspose2d(8, 3, 3, stride=2, padding=1, output_padding=1),  # (3, 32, 32)
+        self._output = nn.Sequential(
+            nn.ConvTranspose2d(16, 3, 3, stride=2, padding=1, output_padding=1),  # (3, 32, 32)
             nn.BatchNorm2d(3),
             nn.ReLU(True)
         )
@@ -146,18 +163,46 @@ class ConvAutoEncoderV2(nn.Module):
     def forward(self, x: Tensor) -> Tensor:
         out1 = self._encoder_layer_1(x)
         out2 = self._encoder_layer_2(out1)
-        encoder_out = self._encoder_layer_3(out2)
+        out3 = self._encoder_layer_3(out2)
+        out4 = self._encoder_layer_4(out3)
 
-        decoder_out_1 = self._decoder_layer_1(encoder_out)
-        decoder_out_1 = decoder_out_1 + out2
+        decoder_inpout = self._linear(out4)
+
+        decoder_inpout = decoder_inpout + out4
+
+        decoder_out_1 = self._decoder_layer_1(decoder_inpout)
+        decoder_out_1 = decoder_out_1 + out3
 
         decoder_out_2 = self._decoder_layer_2(decoder_out_1)
-        decoder_out_2 = decoder_out_2 + out1
+        decoder_out_2 = decoder_out_2 + out2
 
         decoder_out_3 = self._decoder_layer_3(decoder_out_2)
-        decoder_out = self._decoder_layer_4(decoder_out_3)
+        decoder_out_3 = decoder_out_3 + out1
+        decoder_out = self._output(decoder_out_3)
 
         return decoder_out
+
+
+class SubPixelCNN(nn.Module):
+    def __init__(self, upscale_factor=2, channels=3):
+        super(SubPixelCNN, self).__init__()
+        self._upscale_factor = upscale_factor
+        self._channels = channels
+        self._sequence = nn.Sequential(
+            nn.Conv2d(3, 64, 5, padding=2),
+            nn.ReLU(True),
+            nn.Conv2d(64, 64, 3, padding=1),
+            nn.ReLU(True),
+            nn.Conv2d(64, 32, 3, padding=1),
+            nn.ReLU(True),
+            nn.Conv2d(32, channels * (upscale_factor ** 2), 3, padding=1),
+            nn.ReLU(True)
+        )
+
+    def forward(self, x: Tensor) -> Tensor:
+        out = self._sequence(x)
+        out = nn.functional.pixel_shuffle(out, upscale_factor=self._upscale_factor)
+        return out
 
 
 def create_recover_resolution_net(

@@ -1,11 +1,8 @@
-import os
 import argparse
 
-import torch
-from torch import nn
 from torch.utils.data import DataLoader
-from data_processing.recover_dataset import RecoverResolutionCifarDataset
-from models.recover_resolution import ConvAutoEncoder, ConvAutoEncoderV2
+from data_processing.recover_dataset import RecoverResolutionDataset
+from models.recover_resolution import *
 from basic_trainer import plot_training_loss, update_metrics, checkpoint
 
 from utils.utils import progress_bar
@@ -17,7 +14,7 @@ def create_arg_parser():
     parser.add_argument('--epochs', default=100, type=int, help='Number of epochs')
     parser.add_argument('--img_input_size', default=8, type=int, help='Image Size')
     parser.add_argument('--img_output_size', default=32, type=int, help='Image Size')
-    parser.add_argument('--cifar_data_path', required=True,
+    parser.add_argument('--data_path', required=True,
                         help='input_folder containing the CIFAR images')
     parser.add_argument('--checkpoint_path', required=True, help='checkpoint_path for the model')
     return parser
@@ -25,10 +22,10 @@ def create_arg_parser():
 
 def main(args):
     # Data
-    dataset = RecoverResolutionCifarDataset(
+    dataset = RecoverResolutionDataset(
         args.img_input_size,
         args.img_output_size,
-        args.cifar_data_path
+        args.data_path
     )
 
     # Initialize the model
@@ -41,6 +38,7 @@ def main(args):
 
     # net = ConvAutoEncoder()
     net = ConvAutoEncoderV2()
+    # net = SubPixelCNN()
     net = net.to(device)
 
     history = train_model(net, dataset, args, device)
@@ -58,7 +56,7 @@ def train_model(
         train_set, batch_size=128, shuffle=True, num_workers=4
     )
 
-    criterion = nn.MSELoss(reduction='sum')
+    criterion = nn.MSELoss()
     # criterion = nn.BCELoss()
     optimizer = torch.optim.Adam(
         net.parameters(), lr=args.lr, weight_decay=1e-4, eps=0.001
@@ -81,8 +79,7 @@ def train_model(
             train_acc=0.0,
             val_acc=0.0
         )
-        if epoch % 10 == 0:
-            checkpoint(net, history, args.checkpoint_path, f'model-{epoch}.pt')
+        checkpoint(net, history, args.checkpoint_path, f'model-{epoch}.pt')
 
     # Save for the last time
     checkpoint(net, history, args.checkpoint_path, 'final_model.pt')
