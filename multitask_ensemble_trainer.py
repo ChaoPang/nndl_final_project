@@ -42,6 +42,7 @@ def create_arg_parser():
     parser.add_argument('--dropout_rate', default=0.5, type=float, help='Dropout rate')
     parser.add_argument('--train_percentage', default=0.8, type=float,
                         help='training_percentage')
+    parser.add_argument('--novel_cutoff', default=11.0, type=float, help='novel_cutoff')
     parser.add_argument('--freeze_weight', action='store_true',
                         help='Whether or not we freeze the weights of the pretrained model')
     parser.add_argument('--deep_feature', action='store_true',
@@ -271,7 +272,13 @@ def predict(
             subclass_average_prob_batch = torch.max(average_subclass_output, dim=-1)[0]
 
             superclass_predictions.append(superclass_prediction_batch.detach().cpu().numpy())
+
+            # Detect novel class
+            novel_mask = (subclass_average_prob_batch < args.novel_cutoff)
+            # Merge the predictions with novel
+            subclass_prediction_batch = novel_mask * 89 + ~novel_mask * subclass_prediction_batch
             subclass_predictions.append(subclass_prediction_batch.detach().cpu().numpy())
+            # Save the subclass logits for validation later
             subclass_probs.append(subclass_average_prob_batch.detach().cpu().numpy())
 
             superclass_labels.append(superclass_targets.detach().cpu().numpy())
