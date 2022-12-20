@@ -111,7 +111,8 @@ def train(
         train_loader,
         superclass_criterion,
         subclass_criterion,
-        optimizer
+        optimizer,
+        novel_cutoff
 ):
     net.train()
 
@@ -142,7 +143,12 @@ def train(
         _, superclass_predicted = superclass_outputs.max(1)
         superclass_correct += superclass_predicted.eq(superclass_targets).sum().item()
 
-        _, subclass_predicted = subclass_outputs.max(1)
+        subclass_prob, subclass_predicted = subclass_outputs.max(1)
+
+        novel_mask = (subclass_prob < novel_cutoff)
+        # Merge the predictions with novel
+        subclass_predicted = novel_mask * 89 + ~novel_mask * subclass_predicted
+
         subclass_correct += subclass_predicted.eq(subclass_targets).sum().item()
 
         progress_bar(
@@ -167,7 +173,8 @@ def validate(
         val_loader,
         superclass_criterion,
         subclass_criterion,
-        external_validation
+        external_validation,
+        novel_cutoff
 ):
     net.eval()
     val_loss = 0
@@ -195,7 +202,12 @@ def validate(
             if not external_validation:
                 subclass_loss = subclass_criterion(subclass_outputs, subclass_targets)
                 loss = loss + subclass_loss
-                _, subclass_predictions = subclass_outputs.max(1)
+
+                subclass_prob, subclass_predictions = subclass_outputs.max(1)
+                novel_mask = (subclass_prob < novel_cutoff)
+                # Merge the predictions with novel
+                subclass_predictions = novel_mask * 89 + ~novel_mask * subclass_predictions
+
                 subclass_correct += subclass_predictions.eq(subclass_targets).sum().item()
             else:
                 subclass_loss = 0
@@ -355,7 +367,8 @@ def train_model(
             args.epochs,
             args.early_stopping_patience,
             args.checkpoint_path,
-            args.external_validation
+            args.external_validation,
+            args.novel_cutoff
         )
 
         # Load the best model according to the val loss
@@ -415,7 +428,8 @@ def training_loop(
         epochs,
         early_stopping_patience,
         checkpoint_path,
-        external_validation
+        external_validation,
+        novel_cutoff
 ):
     early_stopping_counter = 0
     best_val_acc = 0
@@ -429,7 +443,8 @@ def training_loop(
             train_dataloader,
             superclass_criterion,
             subclass_criterion,
-            optimizer
+            optimizer,
+            novel_cutoff
         )
 
         val_loss, val_acc = validate(
@@ -437,7 +452,8 @@ def training_loop(
             val_dataloader,
             superclass_criterion,
             subclass_criterion,
-            external_validation
+            external_validation,
+            novel_cutoff
         )
         scheduler.step()
 
